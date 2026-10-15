@@ -1364,6 +1364,7 @@ name = "pearl-episodes"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "anyio" },
     { name = "httpx" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
@@ -1385,6 +1386,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "anyio", specifier = ">=4.15" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "lerobot", marker = "extra == 'datasets'" },
     { name = "pydantic", specifier = ">=2.10" },
