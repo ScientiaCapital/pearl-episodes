@@ -7,10 +7,13 @@ auth, every response wrapped as `{"status": "ok", "result": ...}`. Paths below a
 
 from __future__ import annotations
 
+import os
+from functools import partial
 from pathlib import Path
 from typing import Any
 
 import httpx
+from anyio import to_thread
 from pydantic import BaseModel
 
 from pearl_episodes.config import Settings
@@ -64,6 +67,23 @@ class PearlApiError(Exception):
         self.status = status
         self.excerpt = excerpt
         super().__init__(f"{path}: status={status!r}: {excerpt}")
+
+
+class FileStillRecording(Exception):
+    """The archive listing marks the file `recording` or `uploading`; the device is still writing it."""
+
+    def __init__(self, file_id: str) -> None:
+        self.file_id = file_id
+        super().__init__(f"file {file_id} is still being written on the device; pull it later")
+
+
+class IncompleteDownload(Exception):
+    """Fewer or more bytes arrived than `Content-Length` or the archive listing's `size` promised."""
+
+    def __init__(self, expected: int, got: int) -> None:
+        self.expected = expected
+        self.got = got
+        super().__init__(f"expected {expected} bytes, got {got}")
 
 
 def _check_envelope(path: str, response: httpx.Response) -> dict[str, Any]:
@@ -140,15 +160,43 @@ class PearlClient:
             if len(batch) < PAGE_SIZE:
                 return files
 
-    async def download(self, recorder_id: str, file_id: str, dest: Path) -> Path:
-        """Stream one recording to disk (`application/octet-stream`). Missing recorder or file is a 404."""
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        async with self._client.stream("GET", f"/recorders/{recorder_id}/archive/files/{file_id}") as r:
-            r.raise_for_status()
-            with dest.open("wb") as fh:
-                async for chunk in r.aiter_bytes():
-                    fh.write(chunk)
+    async def download(self, recorder_id: str, file: RecordingFile, dest: Path) -> Path:
+        """Stream one recording to disk (`application/octet-stream`; a missing recorder or file is a 404).
+
+        Refuses a file still `recording` or `uploading`. Writes to `<dest>.part`, compares the byte count with
+        `Content-Length` and with the listing's `size`, and only then moves it into place, so a truncated
+        download never sits at the final path. Disk writes run in a worker thread.
+        """
+        if file.recording or file.uploading:
+            raise FileStillRecording(file.id)
+        part = dest.with_name(dest.name + ".part")
+        await to_thread.run_sync(partial(dest.parent.mkdir, parents=True, exist_ok=True))
+        try:
+            got = await self._stream_to(f"/recorders/{recorder_id}/archive/files/{file.id}", part)
+            if file.size is not None and got != file.size:
+                raise IncompleteDownload(file.size, got)
+            await to_thread.run_sync(os.replace, part, dest)
+        except BaseException:
+            part.unlink(missing_ok=True)
+            raise
         return dest
+
+    async def _stream_to(self, path: str, part: Path) -> int:
+        """Stream `path` into `part`; return the byte count, which must match `Content-Length` when sent."""
+        got = 0
+        async with self._client.stream("GET", path) as r:
+            r.raise_for_status()
+            fh = await to_thread.run_sync(partial(part.open, "wb"))
+            try:
+                async for chunk in r.aiter_bytes():
+                    await to_thread.run_sync(fh.write, chunk)
+                    got += len(chunk)
+            finally:
+                await to_thread.run_sync(fh.close)
+            length = r.headers.get("Content-Length")
+            if length is not None and got != int(length):
+                raise IncompleteDownload(int(length), got)
+        return got
 
     async def start_all(self, ids: list[str] | None = None) -> None:
         """Bulk start. Asynchronous: returns when the command is accepted, not when recorders are running."""

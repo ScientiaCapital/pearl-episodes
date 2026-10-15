@@ -1,8 +1,20 @@
+import hashlib
+from collections.abc import AsyncIterator
+from pathlib import Path
+
 import httpx
 import pytest
 
 from pearl_episodes.config import Settings
-from pearl_episodes.pearl.client import PAGE_SIZE, PearlApiError, PearlClient
+from pearl_episodes.episodes.manifest import sha256_of
+from pearl_episodes.pearl.client import (
+    PAGE_SIZE,
+    FileStillRecording,
+    IncompleteDownload,
+    PearlApiError,
+    PearlClient,
+    RecordingFile,
+)
 
 
 def _settings() -> Settings:
@@ -129,3 +141,83 @@ async def test_bulk_start_with_non_ok_status_raises() -> None:
     async with _client({"status": "error", "message": "no such recorder"}) as client:
         with pytest.raises(PearlApiError):
             await client.start_all(["9"])
+
+
+# Issue #3: downloads are atomic and size-verified, and refuse files the device is still writing.
+
+
+def _recording_file(size: int | None, **flags: bool) -> RecordingFile:
+    return RecordingFile.model_validate({**_file(7), "size": size, **flags})
+
+
+def _streaming_client(chunks: list[bytes], headers: dict[str, str] | None = None) -> PearlClient:
+    async def body() -> AsyncIterator[bytes]:
+        for chunk in chunks:
+            yield chunk
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/api/v2.0/recorders/1/archive/files/7"
+        return httpx.Response(200, content=body(), headers=headers)
+
+    return PearlClient(_settings(), transport=httpx.MockTransport(handler))
+
+
+async def test_download_streams_chunks_to_the_final_path_with_the_right_hash(tmp_path: Path) -> None:
+    chunks = [b"abc", b"def", b"ghi"]
+    dest = tmp_path / "out" / "7.mp4"
+    async with _streaming_client(chunks, {"Content-Length": "9"}) as client:
+        await client.download("1", _recording_file(size=9), dest)
+    assert dest.read_bytes() == b"abcdefghi"
+    assert sha256_of(dest) == hashlib.sha256(b"abcdefghi").hexdigest()
+    assert list(tmp_path.rglob("*.part")) == []
+
+
+async def test_download_that_drops_mid_stream_leaves_no_file(tmp_path: Path) -> None:
+    async def body() -> AsyncIterator[bytes]:
+        yield b"abc"
+        raise httpx.ReadError("connection dropped")
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=body())
+
+    dest = tmp_path / "7.mp4"
+    async with PearlClient(_settings(), transport=httpx.MockTransport(handler)) as client:
+        with pytest.raises(httpx.ReadError):
+            await client.download("1", _recording_file(size=9), dest)
+    assert list(tmp_path.iterdir()) == []
+
+
+async def test_download_404_leaves_no_file(tmp_path: Path) -> None:
+    dest = tmp_path / "7.mp4"
+    async with _client({"status": "error"}, 404) as client:
+        with pytest.raises(httpx.HTTPStatusError):
+            await client.download("1", _recording_file(size=9), dest)
+    assert list(tmp_path.iterdir()) == []
+
+
+async def test_download_shorter_than_content_length_raises_and_cleans_up(tmp_path: Path) -> None:
+    dest = tmp_path / "7.mp4"
+    async with _streaming_client([b"abc"], {"Content-Length": "9"}) as client:
+        with pytest.raises(IncompleteDownload) as info:
+            await client.download("1", _recording_file(size=None), dest)
+    assert (info.value.expected, info.value.got) == (9, 3)
+    assert list(tmp_path.iterdir()) == []
+
+
+async def test_download_differing_from_archive_size_raises(tmp_path: Path) -> None:
+    dest = tmp_path / "7.mp4"
+    async with _streaming_client([b"abc"]) as client:
+        with pytest.raises(IncompleteDownload):
+            await client.download("1", _recording_file(size=4), dest)
+    assert list(tmp_path.iterdir()) == []
+
+
+@pytest.mark.parametrize("flag", ["recording", "uploading"])
+async def test_download_refuses_a_file_the_device_is_still_writing(tmp_path: Path, flag: str) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise AssertionError("no request should be made")
+
+    async with PearlClient(_settings(), transport=httpx.MockTransport(handler)) as client:
+        with pytest.raises(FileStillRecording):
+            await client.download("1", _recording_file(size=9, **{flag: True}), tmp_path / "7.mp4")
+    assert list(tmp_path.iterdir()) == []
