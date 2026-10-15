@@ -1,0 +1,12 @@
+* text=auto
+# Hooks and scripts run on macOS and Linux: always LF, even from a Windows checkout.
+*.sh text eol=lf
+*.py text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.toml text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+uv.lock text eol=lf
+NOTICE text eol=lf
+LICENSE text eol=lf

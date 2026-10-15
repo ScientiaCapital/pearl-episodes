@@ -1,0 +1,9 @@
+# Default owner for everything.
+*                         @ScientiaCapital
+
+# Safety-critical paths: Edge write guard, redaction, secrets hook, permissions, CI.
+/.claude/hooks/            @ScientiaCapital
+/.claude/settings.json     @ScientiaCapital
+/tests/hook-test.sh        @ScientiaCapital
+/tests/redaction-cases.json @ScientiaCapital
+/.github/                  @ScientiaCapital
