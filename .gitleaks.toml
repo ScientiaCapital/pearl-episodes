@@ -1,0 +1,9 @@
+# gitleaks: every default rule, plus one exemption.
+title = "pearl-episodes"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Synthetic secrets the redaction tests must catch (shared byte-for-byte with Fleetwatch and the Edge Claude Kit)"
+paths = ['''^tests/redaction-cases\.json$''']

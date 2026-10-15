@@ -12,7 +12,7 @@ def test_manifest_roundtrip_and_hashes(tmp_path: Path) -> None:
     assert cam.sha256 == sha256_of(video)
     manifest = EpisodeManifest(
         episode_id="ep-0001",
-        device_serial="TSH801558",
+        device_serial="TEST-SERIAL-0001",
         device_model="Pearl-2",
         firmware="4.24.6",
         start_time=datetime(2026, 10, 14, 17, 32, 30, tzinfo=UTC),
