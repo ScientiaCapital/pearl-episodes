@@ -1,4 +1,4 @@
-"""scripts/codec_compare.sh (issue #11): the commands for the bench codec test, reproducible on any Pearl file."""
+"""scripts/codec_compare.sh (issue #11): the bench codec test commands, reproducible on any Pearl file."""
 
 import shutil
 import subprocess
