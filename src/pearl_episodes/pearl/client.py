@@ -43,13 +43,40 @@ class Recorder(BaseModel):
 
 
 class DeviceInfo(BaseModel):
-    """Identity and firmware for the manifest. Serial number is not in the REST spec; take it from Edge."""
+    """Identity and firmware for the manifest. Serial number is not in the REST spec; take it from Edge.
 
-    name: str = ""
-    location: str = ""
-    firmware_version: str = ""
-    firmware_revision: str = ""
-    product_name: str = ""
+    A field the device did not report is `None`, never an empty string, so the manifest cannot carry a blank
+    firmware version as if it had been read.
+    """
+
+    name: str | None = None
+    location: str | None = None
+    firmware_version: str | None = None
+    firmware_revision: str | None = None
+    product_name: str | None = None
+
+
+class PearlApiError(Exception):
+    """The device answered without `{"status": "ok", "result": ...}`, or the result had the wrong shape."""
+
+    def __init__(self, path: str, status: object, excerpt: str) -> None:
+        self.path = path
+        self.status = status
+        self.excerpt = excerpt
+        super().__init__(f"{path}: status={status!r}: {excerpt}")
+
+
+def _check_envelope(path: str, response: httpx.Response) -> dict[str, Any]:
+    """Return the parsed body if it is a dict with `status == "ok"`; raise `PearlApiError` otherwise."""
+    excerpt = response.text[:200]
+    try:
+        body = response.json()
+    except ValueError as exc:
+        raise PearlApiError(path, None, excerpt) from exc
+    if not isinstance(body, dict) or body.get("status") != "ok":
+        status = body.get("status") if isinstance(body, dict) else None
+        raise PearlApiError(path, status, excerpt)
+    return body
 
 
 class PearlClient:
@@ -68,23 +95,37 @@ class PearlClient:
     async def __aexit__(self, *exc: object) -> None:
         await self._client.aclose()
 
-    async def _get_result(self, path: str, params: dict[str, Any] | None = None) -> Any:
+    async def _get_result[T: (list, dict)](
+        self, path: str, expect: type[T], params: dict[str, Any] | None = None
+    ) -> T:
+        """GET `path`; HTTP errors raise `httpx.HTTPStatusError`, a bad envelope or a `result` that is not an
+        `expect` raises `PearlApiError`."""
         response = await self._client.get(path, params=params)
         response.raise_for_status()
-        return response.json().get("result")
+        body = _check_envelope(path, response)
+        if "result" not in body or not isinstance(body["result"], expect):
+            excerpt = f"expected a {expect.__name__} result: {response.text[:200]}"
+            raise PearlApiError(path, body.get("status"), excerpt)
+        return body["result"]
+
+    async def _post(self, path: str, params: dict[str, str] | None = None) -> None:
+        """POST a control call. The spec returns the envelope with no `result`."""
+        response = await self._client.post(path, params=params)
+        response.raise_for_status()
+        _check_envelope(path, response)
 
     async def list_recorders(self) -> list[Recorder]:
-        return [Recorder.model_validate(r) for r in await self._get_result("/recorders") or []]
+        return [Recorder.model_validate(r) for r in await self._get_result("/recorders", list)]
 
     async def device_info(self) -> DeviceInfo:
-        ident = await self._get_result("/system/ident") or {}
-        fw = await self._get_result("/system/firmware") or {}
+        ident = await self._get_result("/system/ident", dict)
+        fw = await self._get_result("/system/firmware", dict)
         return DeviceInfo(
-            name=ident.get("name", ""),
-            location=ident.get("location", ""),
-            firmware_version=fw.get("version", ""),
-            firmware_revision=fw.get("revision", ""),
-            product_name=fw.get("product_name", ""),
+            name=ident.get("name"),
+            location=ident.get("location"),
+            firmware_version=fw.get("version"),
+            firmware_revision=fw.get("revision"),
+            product_name=fw.get("product_name"),
         )
 
     async def list_recordings(self, recorder_id: str) -> list[RecordingFile]:
@@ -92,9 +133,9 @@ class PearlClient:
         files: list[RecordingFile] = []
         while True:
             page = await self._get_result(
-                f"/recorders/{recorder_id}/archive/files", {"from": len(files), "limit": PAGE_SIZE}
+                f"/recorders/{recorder_id}/archive/files", list, {"from": len(files), "limit": PAGE_SIZE}
             )
-            batch = [RecordingFile.model_validate(item) for item in page or []]
+            batch = [RecordingFile.model_validate(item) for item in page]
             files.extend(batch)
             if len(batch) < PAGE_SIZE:
                 return files
@@ -111,12 +152,10 @@ class PearlClient:
 
     async def start_all(self, ids: list[str] | None = None) -> None:
         """Bulk start. Asynchronous: returns when the command is accepted, not when recorders are running."""
-        response = await self._client.post("/recorders/control/start", params=_ids(ids))
-        response.raise_for_status()
+        await self._post("/recorders/control/start", params=_ids(ids))
 
     async def stop_all(self, ids: list[str] | None = None) -> None:
-        response = await self._client.post("/recorders/control/stop", params=_ids(ids))
-        response.raise_for_status()
+        await self._post("/recorders/control/stop", params=_ids(ids))
 
 
 def _ids(ids: list[str] | None) -> dict[str, str] | None:
