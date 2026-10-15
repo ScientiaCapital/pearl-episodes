@@ -16,7 +16,9 @@ from pydantic import ValidationError
 
 from pearl_episodes import __version__
 from pearl_episodes.config import Settings
+from pearl_episodes.episodes.packager import CameraInput, TakeLabels, package_take
 from pearl_episodes.episodes.pull import pull
+from pearl_episodes.media.ffmpeg import RemuxError
 from pearl_episodes.pearl.client import PearlApiError, PearlClient
 
 REQUIRED_MODULES = ("httpx", "pydantic", "pydantic_settings")
@@ -93,6 +95,35 @@ def _run(action: Callable[[PearlClient, Settings], Awaitable[None]], transport: 
     return 0
 
 
+def _package(args: argparse.Namespace) -> int:
+    """Package pulled files as an episode. Needs settings (folders) and ffmpeg, not the device."""
+    try:
+        settings = Settings()
+    except ValidationError as exc:
+        print(f"settings: {_missing_settings(exc)} not set; copy .env.example to .env", file=sys.stderr)
+        return 1
+    cameras = [
+        CameraInput(
+            channel_id, channel_name, recorder_id,
+            settings.episodes_recordings_dir / settings.host / recorder_id, file_ids.split(","),
+        )
+        for channel_id, channel_name, recorder_id, file_ids in args.camera
+    ]  # fmt: skip
+    labels = TakeLabels(
+        device_serial=args.serial, device_model=args.model, firmware=args.firmware, task_label=args.task,
+        operator=args.operator, scene=args.scene, clock_source=args.clock_source, notes=args.notes,
+        session_id=args.session,
+    )  # fmt: skip
+    try:
+        episodes = asyncio.run(package_take(cameras, labels, settings.episodes_output_dir, args.episode_id))
+    except (ValueError, FileExistsError, FileNotFoundError, RemuxError) as exc:
+        print(f"package: {exc}", file=sys.stderr)
+        return 1
+    for episode in episodes:
+        print(episode)
+    return 0
+
+
 def main(argv: list[str] | None = None, transport: Transport = None) -> int:
     parser = argparse.ArgumentParser(prog="pearl-episodes")
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -104,7 +135,26 @@ def main(argv: list[str] | None = None, transport: Transport = None) -> int:
         "pull", help="download new recordings from one recorder, skipping those already pulled"
     )
     p_pull.add_argument("recorder_id")
-    sub.add_parser("package", help="package pulled recordings as episodes (not implemented)")
+    p_pkg = sub.add_parser(
+        "package", help="package pulled files of one take as an episode (remux, no re-encode)"
+    )
+    p_pkg.add_argument(
+        "--camera", nargs=4, action="append", required=True,
+        metavar=("CHANNEL_ID", "CHANNEL_NAME", "RECORDER_ID", "FILE_IDS"),
+        help="one camera: channel id and name, recorder id, comma-separated file ids; repeat per camera",
+    )  # fmt: skip
+    p_pkg.add_argument(
+        "--serial", required=True, help="device serial number (from Edge; not in the REST API)"
+    )
+    p_pkg.add_argument("--model", required=True, help="device model, as `get_device_info` reports it")
+    p_pkg.add_argument("--firmware", required=True)
+    p_pkg.add_argument("--task", default="", help="task label")
+    p_pkg.add_argument("--operator", default="")
+    p_pkg.add_argument("--scene", default="")
+    p_pkg.add_argument("--clock-source", choices=["ntp", "ptp", "manual", "unknown"], default="unknown")
+    p_pkg.add_argument("--session", default=None, help="session id of the operator log")
+    p_pkg.add_argument("--notes", default="")
+    p_pkg.add_argument("--episode-id", default=None, help="default: <serial>-<first created>")
     args = parser.parse_args(argv)
     if args.cmd == "doctor":
         return _doctor()
@@ -114,8 +164,7 @@ def main(argv: list[str] | None = None, transport: Transport = None) -> int:
         return _run(lambda client, settings: _list(client, settings, args.recorder_id), transport)
     if args.cmd == "pull":
         return _run(lambda client, settings: _pull(client, settings, args.recorder_id), transport)
-    print(f"{args.cmd}: not implemented yet; see .claude/TASK.md", file=sys.stderr)
-    return 2
+    return _package(args)
 
 
 if __name__ == "__main__":
