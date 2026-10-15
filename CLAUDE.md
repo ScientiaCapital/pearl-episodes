@@ -28,6 +28,18 @@ Team → Devices (`Id`) → Channels (`channel_id`) → recording_status, publis
 `<device_id>-<channel_id>`. Pearl rolls a recording into a new file at 30 minutes or 500 MB by default, so one
 take can be several files; a channel controlled by Edge must record MP4 with a 500 MB maximum file size.
 
+## Gotchas
+- The hooks need `jq`. Without it `check-secrets.sh` denies every file write and the redactor withholds output.
+- A test that needs a fake secret builds it from pieces (see `tests/hook-test.sh`), or `check-secrets.sh` denies
+  the write. `tests/redaction-cases.json` is allowlisted in `.gitleaks.toml` and stays byte-identical with the Edge
+  Claude Kit and Fleetwatch; change it there first.
+- `docs/assets/epiphan-logo*.svg` are byte-identical Brand MCP assets (re-fetch from the asset URL, never edit).
+  Banners and the architecture diagram are generated: `python3 scripts/build_readme_art.py`.
+- Shared prose (README, anything that leaves the repo) uses US spelling and passes the Epiphan Brand
+  `check_my_copy`. Product facts still come from the kb.
+- `main` has no branch protection on this plan. Branch and PR; merging, force-pushing or rewriting history needs
+  Tim's OK in that session. History was scrubbed of internal content on 2026-10-14; don't reintroduce it.
+
 ## Workflow
 `/begin` loads context, `/status` checks state, `/build` for features, `/ship` to commit and push, `/end` to
 close the day (observers, secrets sweep, context sync). Tasks live in `.claude/TASK.md`, the queue in
