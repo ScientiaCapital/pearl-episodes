@@ -1,0 +1,62 @@
+[project]
+name = "pearl-episodes"
+version = "0.1.0"
+description = "Record robot-learning demonstrations on Epiphan Pearl, run the stations through Epiphan Edge, and package each take as an episode in the formats labs use (LeRobot, RLDS)"
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+keywords = ["epiphan", "pearl", "epiphan-edge", "robot-learning", "open-x-embodiment", "lerobot", "rlds", "mcp"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Science/Research",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Multimedia :: Video",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+authors = [{ name = "Tim Kipper", email = "tkipper@epiphan.com" }]
+requires-python = ">=3.12"
+dependencies = [
+    "httpx>=0.28.1",
+    "pydantic>=2.10",
+    "pydantic-settings>=2.15.0",
+    "pyyaml>=6.0.3",
+]
+
+[project.optional-dependencies]
+# Heavy, install on purpose: `uv sync --extra datasets`. Versions unpinned until first verified install on Apple silicon.
+datasets = ["lerobot", "tensorflow", "tensorflow-datasets"]
+
+[project.urls]
+Source = "https://github.com/ScientiaCapital/pearl-episodes"
+Issues = "https://github.com/ScientiaCapital/pearl-episodes/issues"
+
+[project.scripts]
+pearl-episodes = "pearl_episodes.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.9.26,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "ruff>=0.16.10",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+exclude = [".claude/hooks"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "ASYNC"]

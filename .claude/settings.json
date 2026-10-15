@@ -1,0 +1,80 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__epiphan__get_devices_in_my_team",
+      "mcp__epiphan__get_device_info",
+      "mcp__epiphan__get_device_sources",
+      "mcp__epiphan__get_system_status_for_devices",
+      "mcp__epiphan__get_recorder_status_for_devices",
+      "mcp__epiphan__get_storage_status_for_devices",
+      "mcp__epiphan__get_channel_settings",
+      "mcp__epiphan__get_channel_image",
+      "mcp__epiphan__get_channel_audio_levels",
+      "mcp__epiphan__get_stream_endpoint",
+      "mcp__epiphan__get_stream_endpoints",
+      "mcp__epiphan__get_team_presets",
+      "mcp__epiphan__get_cms_events_for_device",
+      "mcp__epiphan__get_cms_events_for_devices",
+      "mcp__epiphan__get_current_or_next_cms_event_for_device",
+      "mcp__epiphan__get_current_or_next_cms_events_for_devices",
+      "mcp__epiphan__get_cms_names_for_devices",
+      "mcp__epiphan__get_devices_by_cms",
+      "mcp__epiphan__kb_search",
+      "mcp__epiphan__kb_fetch",
+      "mcp__claude_ai_Epiphan_MCP__get_devices_in_my_team",
+      "mcp__claude_ai_Epiphan_MCP__get_device_info",
+      "mcp__claude_ai_Epiphan_MCP__get_device_sources",
+      "mcp__claude_ai_Epiphan_MCP__get_system_status_for_devices",
+      "mcp__claude_ai_Epiphan_MCP__get_recorder_status_for_devices",
+      "mcp__claude_ai_Epiphan_MCP__get_storage_status_for_devices",
+      "mcp__claude_ai_Epiphan_MCP__get_channel_settings",
+      "mcp__claude_ai_Epiphan_MCP__get_channel_image",
+      "mcp__claude_ai_Epiphan_MCP__get_channel_audio_levels",
+      "mcp__claude_ai_Epiphan_MCP__get_stream_endpoint",
+      "mcp__claude_ai_Epiphan_MCP__get_stream_endpoints",
+      "mcp__claude_ai_Epiphan_MCP__get_team_presets",
+      "mcp__claude_ai_Epiphan_MCP__get_cms_events_for_device",
+      "mcp__claude_ai_Epiphan_MCP__get_cms_events_for_devices",
+      "mcp__claude_ai_Epiphan_MCP__get_current_or_next_cms_event_for_device",
+      "mcp__claude_ai_Epiphan_MCP__get_current_or_next_cms_events_for_devices",
+      "mcp__claude_ai_Epiphan_MCP__get_cms_names_for_devices",
+      "mcp__claude_ai_Epiphan_MCP__get_devices_by_cms",
+      "mcp__claude_ai_Epiphan_MCP__kb_search",
+      "mcp__claude_ai_Epiphan_MCP__kb_fetch",
+      "Bash(uv run:*)",
+      "Bash(uv sync:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)"
+    ],
+    "deny": [
+      "mcp__claude_ai_DEV_Epiphan_Cloud__*",
+      "mcp__claude_ai_STAGING_Epiphan_Cloud__*",
+      "mcp__claude_ai_Epiphan_Ai__*"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "mcp__(epiphan|claude_ai_Epiphan_MCP)__get_.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/epiphan-redact.py\""
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/check-secrets.sh\" \"$TOOL_INPUT\""
+          }
+        ]
+      }
+    ]
+  }
+}

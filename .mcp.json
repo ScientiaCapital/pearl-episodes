@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "epiphan": {
+      "type": "http",
+      "url": "https://go.epiphan.cloud/mcp"
+    }
+  }
+}
