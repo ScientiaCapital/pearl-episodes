@@ -1,13 +1,17 @@
 # QUALITY
 
-Point-in-time audit, 2026-10-15 (start of Sprint 1, `main` at 506874a). Format: `[LEVEL] — file:line — what — fix`.
+Point-in-time audit, end of 2026-10-15 (`main` at 29b19f5). Format: `[LEVEL] — file:line — what — fix`.
 
-- [CRITICAL] — src/pearl_episodes/pearl/client.py:71 — `_get_result` ignores `status` and `or []` / `or {}`
-  turn a failed call into "no recordings" or empty firmware strings — issue #2, step 1 of the sprint plan
-- [CRITICAL] — src/pearl_episodes/pearl/client.py:102 — `download` writes to the final path with blocking
-  `open`/`write`; a dropped connection leaves a truncated file that would be hashed as good — issue #3
-- [WARNING] — src/pearl_episodes/cli.py:24 — `doctor` swallows every exception and exits 0 — issue #4
-- [WARNING] — src/pearl_episodes/episodes/manifest.py:39 — `manifest.write` is not atomic and blocks the loop — issue #6
-- [WARNING] — tests/test_config.py:9 — the `_isolated_env` autouse fixture only covers `test_config.py`; other
-  test modules can read a developer's `.env` — issue #13 (move to `tests/conftest.py`)
-- [INFO] — pyproject.toml — `anyio` is used indirectly through httpx; becomes a direct dependency with #3
+Resolved today: envelope check and `or []` fallbacks (#2), atomic downloads (#3), `doctor` exit codes (#4),
+atomic manifest write (#6), the env-isolation fixture now covers every test (#13), `anyio` is a direct dependency.
+
+- [WARNING] — src/pearl_episodes/export/lerobot_v3.py — `-count_packets` and the frame sampler read each whole
+  file; fine for 500 MB segments, untested on a 30-minute 1080p file — time it on the first real take (#10)
+- [WARNING] — src/pearl_episodes/episodes/manifest.py `load_manifest` — a sync file read, called through
+  `to_thread` in the exporter but plain in the CLI path for `export` — wrap if it ever sits on a hot path
+- [WARNING] — src/pearl_episodes/cli.py `package` — `--serial`, `--model` and `--firmware` are required flags;
+  `device_info()` could fill model and firmware — add once a device is on the bench
+- [INFO] — tests/test_lerobot_loader.py — skipped in CI and in the dev venv (needs the `datasets` extra); it
+  passed once in a scratch venv with `lerobot[dataset,av-dep]==0.6.1` — run it after any lerobot bump
+- [INFO] — no real Pearl file has ever gone through `pull`, `package` or `export`; every test uses generated
+  ffmpeg test patterns and mocked transports
