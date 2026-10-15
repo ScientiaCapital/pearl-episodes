@@ -23,6 +23,10 @@ the station operator through Epiphan Edge.
 5. [ ] LeRobot layout writer and a notebook that loads one packaged episode beside a DROID episode
 6. [ ] Operator session script: Edge MCP start, wait, stop, then pull and package; log every warning seen
 
+## Product input
+- 2026-10-14, Yusupha (Slack): Docker "will be fine running on Nano", with some effort to upgrade the Linux kernel.
+  Expectation only; not a commitment. Makes the on-device manifest agent plausible on the Nano bench unit.
+
 ## Decisions
 - Independent recording beside the lab rig is the default; same-feed only where cameras output HDMI/SDI/IP.
 - `clock_source` is recorded, never interpreted. No timing claims.
