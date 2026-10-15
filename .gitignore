@@ -13,6 +13,7 @@
 /recordings/
 /episodes/
 /sessions/
+/demo/
 # Media and dataset files anywhere in the tree, in case one is pulled or exported to the wrong folder
 *.mp4
 *.mov
