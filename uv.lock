@@ -1367,7 +1367,6 @@ dependencies = [
     { name = "httpx" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
-    { name = "pyyaml" },
 ]
 
 [package.optional-dependencies]
@@ -1390,7 +1389,6 @@ requires-dist = [
     { name = "lerobot", marker = "extra == 'datasets'" },
     { name = "pydantic", specifier = ">=2.10" },
     { name = "pydantic-settings", specifier = ">=2.15.0" },
-    { name = "pyyaml", specifier = ">=6.0.3" },
     { name = "tensorflow", marker = "extra == 'datasets'" },
     { name = "tensorflow-datasets", marker = "extra == 'datasets'" },
 ]
