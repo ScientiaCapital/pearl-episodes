@@ -1,6 +1,7 @@
 """CLI behaviour (issue #4): one stderr line and exit 1 on every expected failure; `doctor` is honest."""
 
 import importlib.util
+from pathlib import Path
 
 import httpx
 import pytest
@@ -90,3 +91,34 @@ def test_doctor_exit_1_when_a_required_module_is_missing(
     monkeypatch.setattr(importlib.util, "find_spec", lambda name: None if name == "httpx" else real(name))
     assert main(["doctor"]) == 1
     assert "httpx" in capsys.readouterr().out
+
+
+def test_pull_downloads_into_host_and_recorder_folders_and_exits_0(
+    configured: None, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    monkeypatch.setenv("PEARL_EPISODES_RECORDINGS_DIR", str(tmp_path / "rec"))
+    item = {
+        "id": "1",
+        "name": "Cam",
+        "extension": "mp4",
+        "recording": False,
+        "downloaded": False,
+        "created": "2026-12-11T17:32:10",
+        "duration": 60,
+        "size": 4,
+        "recorder": "1",
+        "uploading": False,
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/archive/files"):
+            return httpx.Response(
+                200, json={"status": "ok", "result": [item][int(request.url.params["from"]) :]}
+            )
+        return httpx.Response(200, content=b"data", headers={"Content-Length": "4"})
+
+    assert main(["pull", "1"], transport=httpx.MockTransport(handler)) == 0
+    assert (tmp_path / "rec" / "pearl.test" / "1" / "1.mp4").read_bytes() == b"data"
+    assert "downloaded 1" in capsys.readouterr().out
+    assert main(["pull", "1"], transport=httpx.MockTransport(handler)) == 0
+    assert "downloaded 0" in capsys.readouterr().out
