@@ -4,6 +4,7 @@ from pathlib import Path
 
 import httpx
 import pytest
+from pydantic import ValidationError
 
 from pearl_episodes.config import Settings
 from pearl_episodes.episodes.manifest import sha256_of
@@ -221,3 +222,48 @@ async def test_download_refuses_a_file_the_device_is_still_writing(tmp_path: Pat
         with pytest.raises(FileStillRecording):
             await client.download("1", _recording_file(size=9, **{flag: True}), tmp_path / "7.mp4")
     assert list(tmp_path.iterdir()) == []
+
+
+# Issue #4: recorder status (`pearl-family/pearl-rest-api-check-recorder-status-and-download-recordings`).
+# Start and stop are asynchronous, so a session must read the state back.
+
+
+async def test_recorder_status_for_several_recorders_sends_ids_and_parses_nested_status() -> None:
+    result = [
+        {
+            "id": "1",
+            "name": "Wide Cam",
+            "status": {"state": "started", "duration": 195, "active": "1", "total": "1"},
+        },
+        {"id": "2", "name": "Side Cam", "status": {"state": "stopped"}},
+    ]
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/api/v2.0/recorders/status"
+        assert request.url.params["ids"] == "1,2"
+        return httpx.Response(200, json={"status": "ok", "result": result})
+
+    async with PearlClient(_settings(), transport=httpx.MockTransport(handler)) as client:
+        statuses = await client.recorder_status(["1", "2"])
+    assert [(s.id, s.status.state, s.status.duration) for s in statuses] == [
+        ("1", "started", 195),
+        ("2", "stopped", None),
+    ]
+
+
+async def test_recorder_status_one_parses_error_state_with_description() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/api/v2.0/recorders/1/status"
+        return httpx.Response(
+            200, json={"status": "ok", "result": {"state": "error", "description": "Disk full"}}
+        )
+
+    async with PearlClient(_settings(), transport=httpx.MockTransport(handler)) as client:
+        status = await client.recorder_status_one("1")
+    assert (status.state, status.description) == ("error", "Disk full")
+
+
+async def test_recorder_status_rejects_an_unknown_state() -> None:
+    async with _client({"status": "ok", "result": {"state": "paused"}}) as client:
+        with pytest.raises(ValidationError):
+            await client.recorder_status_one("1")

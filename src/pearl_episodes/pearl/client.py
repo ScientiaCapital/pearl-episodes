@@ -10,11 +10,11 @@ from __future__ import annotations
 import os
 from functools import partial
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import httpx
 from anyio import to_thread
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from pearl_episodes.config import Settings
 
@@ -43,6 +43,34 @@ class Recorder(BaseModel):
     id: str
     name: str
     multisource: bool = False
+
+
+RecorderState = Literal["disabled", "starting", "started", "stopped", "error"]
+
+
+class RecorderStatus(BaseModel):
+    """Spec schema `RecorderStatus`. States, `duration` in seconds, `active`/`total` source counts and the
+    `description` that explains an `error` state are documented on
+    `pearl-family/pearl-rest-api-check-recorder-status-and-download-recordings`. A stopped recorder reports
+    only `state`; the page's example shows `active` and `total` as strings."""
+
+    model_config = ConfigDict(extra="allow")
+
+    state: RecorderState
+    duration: int | None = None
+    active: str | None = None
+    total: str | None = None
+    description: str | None = None
+
+
+class IdentifiedRecorderStatus(BaseModel):
+    """One item of `GET /recorders/status` (spec schema `IdentifiedRecorderStatus`)."""
+
+    model_config = ConfigDict(extra="allow")
+
+    id: str
+    name: str | None = None
+    status: RecorderStatus
 
 
 class DeviceInfo(BaseModel):
@@ -136,6 +164,16 @@ class PearlClient:
 
     async def list_recorders(self) -> list[Recorder]:
         return [Recorder.model_validate(r) for r in await self._get_result("/recorders", list)]
+
+    async def recorder_status(self, ids: list[str] | None = None) -> list[IdentifiedRecorderStatus]:
+        """`GET /recorders/status`, optionally filtered with `ids`. Start and stop are asynchronous, so this
+        is how a session learns whether a recorder actually runs."""
+        result = await self._get_result("/recorders/status", list, _ids(ids))
+        return [IdentifiedRecorderStatus.model_validate(item) for item in result]
+
+    async def recorder_status_one(self, recorder_id: str) -> RecorderStatus:
+        """`GET /recorders/{rid}/status`."""
+        return RecorderStatus.model_validate(await self._get_result(f"/recorders/{recorder_id}/status", dict))
 
     async def device_info(self) -> DeviceInfo:
         ident = await self._get_result("/system/ident", dict)
