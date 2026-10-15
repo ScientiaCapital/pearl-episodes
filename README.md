@@ -1,7 +1,21 @@
 <p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/banner-dark.svg">
+    <img alt="Epiphan pearl-episodes: Pearl recordings, packaged as robot-learning episodes" src="docs/assets/banner-light.svg" width="720">
+  </picture>
+</p>
+
+<p align="center">
   <a href="https://github.com/ScientiaCapital/pearl-episodes/actions/workflows/ci.yml"><img alt="ci" src="https://github.com/ScientiaCapital/pearl-episodes/actions/workflows/ci.yml/badge.svg"></a>
   <img alt="Python 3.12+" src="https://img.shields.io/badge/python-3.12%2B-blue">
   <img alt="Epiphan internal" src="https://img.shields.io/badge/Epiphan-internal-lightgrey">
+</p>
+
+<p align="center">
+  <a href="#what-you-get-one-take-one-episode">What you get</a> ·
+  <a href="#quick-start">Quick start</a> ·
+  <a href="docs/HARDWARE.md">PoC station</a> ·
+  <a href="SECURITY.md">Security</a>
 </p>
 
 # pearl-episodes
@@ -30,9 +44,61 @@ recording layer beside that rig earns its place, and makes its output load in th
 | **Export** | LeRobot layout and RLDS, keeping Pearl's H.264 as-is (no re-encode) | Designed (`.claude/PLAN.md`) |
 | **Analyze** | Open a Pearl episode in the same notebook as a DROID episode | Planned |
 
+## What you get: one take, one episode
+
+Two EC20s record a take on the Pearl Mini PoC station. `pearl-episodes` packages it into one folder:
+
+```text
+episodes/2026-10-14_pick-cup_0007/
+├── manifest.json     what the product doesn't record: task, operator, scene, clock source, per-file hashes
+├── hashes.txt        sha256 of every file, in `shasum -a 256 -c` format
+├── source/           the Pearl's original MP4s, untouched              (next: pull)
+├── lerobot/          LeRobot layout, Pearl's H.264 kept as-is          (next: export)
+└── rlds/             RLDS episode for Open X-Embodiment tools          (planned)
+```
+
+This `manifest.json` was written by the real packager (`EpisodeManifest` → `package()`) from two stand-in files;
+the serial is a placeholder:
+
+```json
+{
+  "episode_id": "2026-10-14_pick-cup_0007",
+  "device_serial": "TEST-SERIAL-0001",
+  "device_model": "Pearl Mini",
+  "firmware": "4.24.6",
+  "start_time": "2026-10-14T10:02:11",
+  "cameras": [
+    {
+      "channel_id": "1",
+      "channel_name": "exterior-left",
+      "file_name": "EC20-A_Oct14_10-02-11.mp4",
+      "file_size": 25,
+      "sha256": "18526856fd74d7c45803f7e340220ef56f6d1bf527baa819e6ec15e3eb8efde4",
+      "duration_s": 62.0
+    },
+    {
+      "channel_id": "2",
+      "channel_name": "exterior-right",
+      "file_name": "EC20-B_Oct14_10-02-11.mp4",
+      "file_size": 35,
+      "sha256": "eee801a6a20439825ee43a83f35a84ce686187c9aad021ee36882a8ff9808d51",
+      "duration_s": 62.0
+    }
+  ],
+  "task_label": "pick up the cup and place it in the bin",
+  "operator": "op-02",
+  "scene": "bench-desk",
+  "clock_source": "ntp",
+  "notes": "",
+  "schema_version": 1
+}
+```
+
+Then the episode opens in the same notebook as a DROID episode (planned), which is the demo for a lab.
+
 ## What a station records, plainly
 
-- **Colour video only.** Pearl records H.264, 4:2:0, 8-bit (Pearl Nano also H.265). LeRobot stores its colour
+- **Color video only.** Pearl records H.264, 4:2:0, 8-bit (Pearl Nano also H.265). LeRobot stores its color
   streams as `yuv420p` too; its copy of DROID is AV1 4:2:0 at 320×180.
 - **No depth.** LeRobot keeps depth as 12-bit lossless, which an 8-bit 4:2:0 stream can't carry. Depth and robot
   state stay on the lab's own stack.

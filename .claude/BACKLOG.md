@@ -10,7 +10,7 @@ In build order (`.claude/PLAN.md` §9).
 - Packager: segment stitching by remux (no re-encode), then the LeRobot layout
 - Notebook: one packaged Pearl episode beside a DROID episode (the demo for DROID campuses)
 - Bench codec test on the Mini: H.264 at three bitrates, no re-encode vs LeRobot's AV1 default, size and quality
-- Bench tests: ZED 2 (1344×376 UVC mode) and a RealSense colour stream on the Mini's USB input
+- Bench tests: ZED 2 (1344×376 UVC mode) and a RealSense color stream on the Mini's USB input
 - RLDS export via tfds
 - Operator session script over Edge MCP with a session log; preflight from Fleetwatch's readiness check
 - Run an Open X-Embodiment model (RT-1-X) in Colab or on RunPod against Pearl frames of a desk scene
