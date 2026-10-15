@@ -3,32 +3,36 @@
 **Branch**: main | **Updated**: 2026-10-14
 
 ## Status
-Scaffolded 2026-10-14 from the `epiphan-mcp-agent` workspace template and the `fleetwatch` Python layout.
-Bones only: settings, async Pearl REST client (list, download, bulk start/stop), episode manifest model with
-SHA-256 hashing, packager stub, CLI (`doctor` works, `list` talks to a device, `pull` and `package` not built).
-One test passes. GitHub: `ScientiaCapital/pearl-episodes` (private).
+Early. `doctor` and `list <recorder_id>` work against one Pearl. The async REST client covers recorders, archive
+listing, download and bulk start/stop; the manifest model and SHA-256 hashing exist. `pull`, `package` and the
+LeRobot/RLDS layouts are not built. Safety baseline in place (2026-10-14): the Edge Claude Kit's write guard and
+redaction hooks, a working secrets hook, gitleaks, pinned CI. Private repo, Epiphan-owned.
 
 ## Why this exists
 The Physical AI lab proof of concept (see `docs/context/README.md`) needs one artifact above all: a Pearl
 recording that drops into the dataset format a robotics lab already uses, with a manifest that carries what the
-product does not (task, operator, clock source, hash). This project builds that, and lets Claude Code act as
-the station operator through Epiphan Edge.
+product does not (task, operator, clock source, hash). DROID campuses that already run Pearl are the entry
+(`.claude/PLAN.md` §7). This project builds that, and lets Claude Code act as the station operator through Edge.
 
 ## Next session's focus
-1. [ ] Read the four Drive documents and the pro forma (`docs/context/README.md`), then `docs/ARCHITECTURE.md`
-2. [x] Pearl REST API checked against Epiphan's OpenAPI spec 2026-10-14 (base `/api/v2.0`, Basic auth). Still to
-       do: first bench session on Tim's Pearl Mini + EC20 (`docs/HARDWARE.md`), confirm real responses
-3. [ ] `pearl-episodes pull`: new recordings for a recorder to `recordings/<serial>/`, idempotent on file id
-4. [ ] `pearl-episodes package`: one episode directory per take, stitch rolled segments, write manifest + hashes
-5. [ ] LeRobot layout writer and a notebook that loads one packaged episode beside a DROID episode
-6. [ ] Operator session script: Edge MCP start, wait, stop, then pull and package; log every warning seen
+1. [ ] Client hardening (`.claude/BACKLOG.md`, first item)
+2. [ ] First bench session on the Pearl Mini PoC station (`docs/HARDWARE.md`): confirm real responses
+3. [ ] `pearl-episodes pull`, then `package` with manifest v2
+4. [ ] LeRobot export and the notebook beside a DROID episode
+5. [ ] Bench codec test (H.264 bitrates vs LeRobot AV1)
 
 ## Product input
-- 2026-10-14, Product (Slack): Docker "will be fine running on Nano", with some effort to upgrade the Linux kernel.
-  Expectation only; not a commitment. Makes the on-device manifest agent plausible on the Nano bench unit.
+- 2026-10-14: Product expects containers on Pearl Nano are feasible with kernel work. Expectation only, not a
+  commitment. Makes the on-device manifest agent plausible on the Nano bench unit.
+- 2026-10-14: Pearl records H.264 (Nano also H.265), 4:2:0, 8-bit. For colour video that matches what LeRobot
+  stores (yuv420p); depth needs 12-bit lossless in LeRobot, so depth stays on the lab's own stack.
 
 ## Decisions
-- Independent recording beside the lab rig is the default; same-feed only where cameras output HDMI/SDI/IP.
+- Independent recording beside the lab rig is the default; the PoC station is a Pearl Mini with two EC20s on the
+  DROID cart. The next Pearl is the intended production station; nothing depends on its specs.
+- USB (UVC) input is documented on Pearl-2 and Mini, not Nano; which lab cameras work is a bench test.
 - `clock_source` is recorded, never interpreted. No timing claims.
+- Exports keep Pearl's H.264 as-is (remux, no re-encode).
 - Heavy ML dependencies are an optional extra (`uv sync --extra datasets`), unpinned until first verified
   install on Apple silicon.
+- Copyright Epiphan Systems Inc., all rights reserved (LICENSE, NOTICE).

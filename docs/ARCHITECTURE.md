@@ -5,31 +5,53 @@
 | Layer | Runs where | Talks to | Output |
 |---|---|---|---|
 | Operate | Claude Code session | Epiphan Edge via MCP (`get_devices_in_my_team`, `batch_recording`, `get_channel_image`, storage and recorder status) | Session log: which devices and channels recorded, when, with what warnings |
-| Pull and package | `pearl_episodes` (this package) | Each Pearl's REST API; local disk; optional S3/SFTP where AFU already delivered the files | One episode directory per take: videos, `steps.parquet` or `.csv`, `manifest.json`, `hashes.txt` |
-| Analyze | Notebook on the Mac (LeRobot) or Colab/RunPod (OXE models) | The episode directories | Plots, comparisons, model predictions |
+| Pull and package | `pearl_episodes` (this package) | Each Pearl's REST API; local disk; optional S3/SFTP where automatic file upload (AFU) already delivered the files | One episode directory per take: original files, `manifest.json`, `hashes.txt`, LeRobot and RLDS exports |
+| Analyze | Notebook on the Mac (LeRobot) or Colab/RunPod (OXE models) | The episode directories | A Pearl episode beside a DROID episode, plots, model predictions |
 
-## Episode manifest (the audit trail, in software)
+`.claude/PLAN.md` has the full design for one episode, the segment-stitching rule and the operator session log.
 
-Fields: `episode_id`, `device_serial`, `device_model`, `firmware`, `channel_id`, `channel_name`, `start_time` (device clock), `duration_s`, `file_name`, `file_size`, `sha256`, `task_label`, `operator`, `scene`, `clock_source` (ntp | ptp | unknown), `notes`. Everything the product does not carry today lives here.
+## Episode manifest (provenance, in software)
+
+`src/pearl_episodes/episodes/manifest.py`, `schema_version` 1.
+
+- Top level: `episode_id`, `device_serial` (from Edge; not in the REST API), `device_model`, `firmware`,
+  `start_time` (device clock, as the archive listing reports it), `task_label`, `operator`, `scene`,
+  `clock_source` (`ntp` | `ptp` | `unknown`), `notes`, `schema_version`.
+- Per camera, `cameras[]`: `channel_id`, `channel_name`, `file_name`, `file_size`, `sha256`, `duration_s`.
+
+Version 2 (planned, `.claude/PLAN.md` §4) replaces the single file per camera with ordered segments, adds derived
+files with their own hashes, the session id, incidents seen during the take, and `clock_source` `manual`.
 
 ## Pearl REST API (verified against the published OpenAPI spec, 2026-10-14)
 
-Source: `epiphan-video/pearl_api_swagger_ui`, `api/v2.0/openapi.yml`, 64 paths. Base `/api/v2.0`, HTTP Basic
-auth, `https://` when HTTPS is enabled on the device, every response `{"status": "ok", "result": ...}`.
+Source: `epiphan-video/pearl_api_swagger_ui`, `api/v2.0/openapi.yml`, 64 paths, and the kb.epiphan.com REST
+pages cited in `.claude/PLAN.md` §2. Base `/api/v2.0`, HTTP Basic auth, every response
+`{"status": "ok", "result": ...}`. The client always uses `https://` and verifies TLS unless
+`PEARL_VERIFY_TLS=false`; it assumes HTTPS is enabled on the device.
+
 Used here: `GET /recorders`, `GET /recorders/{rid}/archive/files` (paged with `from` and `limit`),
 `GET /recorders/{rid}/archive/files/{fid}` (raw media), `POST /recorders/control/start` and `/stop` (optional
-`ids` query, asynchronous), `GET /system/ident`, `GET /system/firmware`. Archive file fields: `id, name,
-extension, recording, downloaded, created, duration, size, recorder, uploading, event_id`. The spec carries no
-serial number; take it from Edge. File names carry a prefix plus date and time with no documented format, so
-the manifest records `created` from the API and never parses the name.
+`ids` query, asynchronous), `GET /system/ident`, `GET /system/firmware`. Next to add: `GET /recorders/status`.
+Archive file fields: `id, name, extension, recording, downloaded, created, duration, size, recorder, uploading,
+event_id`. File names carry a prefix plus date and time with no documented format, so the manifest records
+`created` from the API and never parses the name.
 
 ## Rules that shape the code
 
-- No claim about multi-camera alignment anywhere in code, docs or output. Record `clock_source` and leave interpretation to Product.
-- Recording actions target channels, not devices. A channel address for Edge batch tools is `<device_id>-<channel_id>`.
-- Edge-controlled recordings are MP4 with a 500 MB cap; files roll every 30 minutes or 500 MB by default. The packager must stitch segments of one take.
+- No claim about multi-camera alignment anywhere in code, docs or output. Record `clock_source` and leave
+  interpretation to Product.
+- Recording actions target channels, not devices. A channel address for Edge batch tools is
+  `<device_id>-<channel_id>`.
+- Pearl rolls a recording into a new file at 30 minutes or 500 MB by default, "without losing any content", so
+  one take can be several files and the packager must stitch them (`pearl-family/about-recording`). Separately,
+  a channel controlled by Edge must record MP4 with a 500 MB maximum file size
+  (`pearl-family/configure-recording-settings-file-size-and-type`).
+- Pearl records H.264 4:2:0 8-bit (Nano also H.265). Exports keep that stream as-is (remux, no re-encode) so the
+  video loses no more quality. Depth is never recorded or claimed.
 - Recordings may contain people. They never leave the machine they were pulled to unless the lab says so.
 
 ## Open product questions this code should not guess at
 
-USB camera ingest; a second simultaneous copy; simultaneous 1080p60 channel count; per-take labels by API; per-file hash at close; custom applications on the Apps page; the next Pearl.
+Which lab USB cameras work on Pearl-2 and Pearl Mini UVC input in practice (documented on both; Nano has none);
+a second simultaneous copy; simultaneous 1080p60 channel count; per-take labels by API; per-file hash at close;
+custom applications on the Apps page; a REST call for the Date and Time protocol; the next Pearl.

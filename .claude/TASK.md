@@ -1,4 +1,4 @@
 # Current Task
 
-First bench session on Tim's Pearl Mini + EC20 (see `docs/HARDWARE.md`): `list` returns real rows, then build
-`pearl-episodes pull` (new files to `recordings/<device>/`, idempotent on file id).
+Client hardening from the 2026-10-14 review (`.claude/BACKLOG.md`, first item), then a first bench session on the
+Pearl Mini PoC station (`docs/HARDWARE.md`): `list` returns real rows, then build `pearl-episodes pull`.
