@@ -36,7 +36,13 @@ dependencies = [
 [project.optional-dependencies]
 # Heavy, install on purpose: `uv sync --extra datasets`. lerobot 0.6.1 is verified: its own loader opens the
 # export (tests/test_lerobot_loader.py). tensorflow stays unpinned until the RLDS exporter exists.
-datasets = ["lerobot[dataset,av-dep]==0.6.1", "tensorflow", "tensorflow-datasets"]
+datasets = [
+    "lerobot[dataset,av-dep]==0.6.1",
+    "tensorflow",
+    "tensorflow-datasets",
+    "matplotlib",
+    "jupyterlab",
+]
 
 [project.urls]
 Source = "https://github.com/ScientiaCapital/pearl-episodes"
