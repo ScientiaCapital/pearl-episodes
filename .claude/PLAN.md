@@ -36,16 +36,20 @@ episodes/<episode_id>/                    # gitignored
   rlds/                                   # derived
 ```
 
-**LeRobot (v2.1 layout shown; pin the version at implementation and check its docs, since v3 changed chunking):**
+**LeRobot v3.0, built (lerobot 0.6.1; the Hub copy of DROID is also v3.0, so v2.1 is not used):**
 ```
-lerobot/meta/info.json                    # fps, features, video codec: probed from the file, never assumed
-lerobot/meta/episodes.jsonl, tasks.jsonl  # task = manifest task_label
-lerobot/data/chunk-000/episode_000000.parquet
-lerobot/videos/chunk-000/observation.images.<channel_name>/episode_000000.mp4
+lerobot/meta/info.json                    # codebase_version v3.0, fps, features; video.* probed from the file
+lerobot/meta/stats.json
+lerobot/meta/tasks.parquet                # task = manifest task_label
+lerobot/meta/episodes/chunk-000/file-000.parquet
+lerobot/data/chunk-000/file-000.parquet
+lerobot/videos/observation.images.<channel_name>/chunk-000/file-000.mp4
 ```
-The step table holds one row per video frame: `frame_index`, `timestamp` (from the file's own presentation
-times, relative to the file start), `episode_index` and `task_index`. **There is no robot state or action:** Pearl
-records video only. Those columns stay absent until a lab's own step table is joined, and that join is the lab's.
+The step table holds one row per frame of the shortest camera: `timestamp = frame_index / fps` (fps probed from
+the file, one integer for all cameras), `frame_index`, `episode_index`, `index` and `task_index`. **There is no
+robot state or action:** Pearl records video only. Those columns stay absent until a lab's own step table is
+joined, and that join is the lab's. The format indexes cameras by frame number; this project claims nothing about
+timing between cameras. Details and the checked 0.6.1 sources are in `docs/ARCHITECTURE.md`.
 
 **RLDS:** one tfds episode with `steps`, where each step has `observation/<channel_name>` (image),
 `is_first`, `is_last`, `is_terminal` and `language_instruction` (= task_label). `action` and `reward` are
@@ -62,7 +66,7 @@ Base `/api/v2.0`, HTTP Basic auth, `https://` when configured
 | Identify device | `GET /system/firmware`, `GET /system/ident` | `pearl-family/pearl-rest-api-check-firmware-version-and-device-identity` | yes |
 | Find recorders | `GET /recorders` (`id`, `name`, `multisource`) | `pearl-family/pearl-rest-api-start-and-stop-recording` | yes |
 | Start / stop (bench only; Edge in sessions) | `POST /recorders/control/start\|stop?ids=` | same page. "These calls are asynchronous" | yes |
-| Confirm state | `GET /recorders/status?ids=`, `GET /recorders/{rid}/status` (`disabled, starting, started, stopped, error`) | `pearl-family/pearl-rest-api-check-recorder-status-and-download-recordings` | **no, add it** |
+| Confirm state | `GET /recorders/status?ids=`, `GET /recorders/{rid}/status` (`disabled, starting, started, stopped, error`) | `pearl-family/pearl-rest-api-check-recorder-status-and-download-recordings` | yes (`recorder_status`, `recorder_status_one`) |
 | List files | `GET /recorders/{rid}/archive/files?from=&limit=` | same page | yes |
 | Download | `GET /recorders/{rid}/archive/files/{fid}` (octet-stream; 404 if missing) | same page | yes |
 
@@ -152,6 +156,13 @@ streams; depth (12-bit lossless in LeRobot) cannot ride on it and stays on the l
 10. Whether `created` in the archive listing is the file-open time or the take start time, and in which time zone.
 
 11. Is there any Pearl path to a bit depth above 8 bits, or is "color video only, no depth" the wording?
+12. What frame rate does a recording file carry when the source is 59.94 or 29.97 Hz and "Limit frame rate" is
+    not set: the source rate (for example 60000/1001) or an integer? The LeRobot export needs one integer fps and
+    refuses a non-integer rate with a clear error. Bench test first (#10), then Product.
+13. Pearl's Key frame interval is a channel setting in seconds, with "a good rule of thumb ... between 2 to 3
+    seconds" (`pearl-mini/configure-video-encoding`, page dated 2026-10-06). LeRobot's default encoder uses a
+    keyframe every 2 frames (`g=2`) for fast random access in training loaders. The decode and seek cost of a
+    longer interval is a bench measurement (#11). Does Product have guidance for recordings meant for training?
 
 ## 7. DROID is the target (decided 2026-10-14)
 
@@ -163,11 +174,13 @@ DROID-shaped:
   The Mini is the PoC; the intended production station is the next Pearl (unannounced; nothing here depends on
   its specs until Product publishes them). So camera count, channels and recorders are data, never constants:
   the manifest's `cameras[]`, per-recorder pulls and the export's camera keys all come from the device listing.
-- **Format bar:** LeRobot's DROID copy stores each camera as AV1, `yuv420p`, 320×180, 15 fps
-  (`lerobot/droid_1.0.1`, `meta/info.json`). Pearl's H.264 4:2:0 is the same class of stream, so the LeRobot export
+- **Format bar:** LeRobot's DROID copy (codebase v3.0, 95,658 episodes) stores each camera as AV1, `yuv420p`, 320×180,
+  15 fps (`lerobot/droid_1.0.1`, `meta/info.json`, read 2026-10-15). Pearl's H.264 4:2:0 is the same class of stream, so the LeRobot export
   keeps the H.264 as-is (LeRobot records `video.codec` per feature) instead of re-encoding.
-- **Camera names:** DROID's exterior keys are `exterior_image_1_left` and `exterior_image_2_left`. Our exports use
-  `observation.images.<channel_name>`, and the notebook maps them side by side; we don't rename Pearl channels
+- **Camera names:** DROID's RLDS exterior keys are `exterior_image_1_left` and `exterior_image_2_left`; the
+  LeRobot copy names them `observation.images.exterior_1_left`, `observation.images.exterior_2_left` and
+  `observation.images.wrist_left` (`lerobot/droid_1.0.1`, `meta/info.json`, read 2026-10-15). Our exports use
+  `observation.images.<channel_name>`, and the notebook shows them side by side; we don't rename Pearl channels
   to pretend they are ZED views.
 - **Demo:** one Pearl take, packaged, opened in the same notebook as a DROID episode.
 
@@ -187,3 +200,8 @@ DROID-shaped:
 `client.py` fixes (status call, envelope check, verified atomic downloads) → `pull` → `package` (manifest v2,
 segments, hashes) → LeRobot export → **notebook beside a DROID episode** → bench codec test → RLDS export →
 session script. Each step comes with tests against a mocked `httpx` transport and no network.
+
+**Sprint 1 progress (2026-10-15):** built and merged: client envelope check, atomic downloads, recorder status,
+`recorders`, CLI exit codes, manifest v2, `pull`, `package` (remux), LeRobot v3.0 export, the notebook beside a
+DROID episode, and the test-gap sweep. Still open: the bench issues (#10 first session, #11 codec test, #12 USB
+cameras) and Product's answers (#14). RLDS export and the session script follow the sprint.

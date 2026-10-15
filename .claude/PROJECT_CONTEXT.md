@@ -3,9 +3,11 @@
 **Branch**: main | **Updated**: 2026-10-14
 
 ## Status
-Early. `doctor` and `list <recorder_id>` work against one Pearl. The async REST client covers recorders, archive
-listing, download and bulk start/stop; the manifest model and SHA-256 hashing exist. `pull`, `package` and the
-LeRobot/RLDS layouts are not built. Safety baseline in place (2026-10-14): the Edge Claude Kit's write guard and
+Sprint 1 built (2026-10-15, PRs #16 to #24): the client checks the response envelope, downloads are atomic and
+size-verified, recorder status and `recorders` exist, manifest v2, `pull`, `package` (remux, no re-encode), the
+LeRobot v3.0 export (opens with lerobot 0.6.1's own loader), and the notebook beside a DROID episode. Nothing has
+run against a real device yet: no `.env`, so all fixtures are hand-written or generated. RLDS export and the
+operator session script are not built. Safety baseline in place (2026-10-14): the Edge Claude Kit's write guard and
 redaction hooks, a working secrets hook, gitleaks, pinned CI. Private repo, Epiphan-owned.
 
 ## Why this exists
@@ -15,7 +17,7 @@ product does not (task, operator, clock source, hash). DROID campuses that alrea
 (`.claude/PLAN.md` §7). This project builds that, and lets Claude Code act as the station operator through Edge.
 
 ## Next session's focus
-Sprint 1 starts 2026-10-15: milestone 1, issues #2 to #14. Day-1 order is in `.claude/TASK.md`.
+Bench day (Tim, with the Pearl Mini): #10 first session and real fixtures, #11 codec test (`scripts/` has no helper yet), #12 USB cameras. #14 waits on Product's written answers. Then RLDS export and the operator session script (`.claude/BACKLOG.md`).
 
 ## 2026-10-14 close
 Safety baseline merged (PR #1, CI green); README with brand banner and static diagram; history scrubbed of
