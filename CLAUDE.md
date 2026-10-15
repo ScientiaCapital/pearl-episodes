@@ -15,7 +15,8 @@ market, the proof of concept and the measures this code has to produce. The file
   write (`batch_recording`, presets, events, reboot, firmware) asks first and names the device and channel.
 - Product facts: the Epiphan Knowledge connector or `kb_search`/`kb_fetch`. Never from memory. If a page does
   not cover it, say so.
-- The team currently visible is Epiphan's own demo fleet. Treat it as shared: record on it only when Tim says so in the session, never during business hours
+- Development hardware is Tim's own Pearl Mini, EC20 and (soon) Nano (`docs/HARDWARE.md`). Use those first.
+- The Edge team visible in some sessions is Epiphan's own demo fleet. Treat it as shared: record on it only when Tim says so in the session, never during business hours
   without asking, and never change presets, events or firmware.
 
 ## Rules that are not negotiable
@@ -24,8 +25,9 @@ market, the proof of concept and the measures this code has to produce. The file
 3. **Python 3.12+, async for all I/O, type hints on every function.** `uv` for everything. `ruff` clean.
 4. **Secrets stay in `.env`.** Mask stream keys and credentialed URLs in any output. Recordings and episodes are
    gitignored and may contain people; they stay on this machine unless the lab says otherwise.
-5. **Pearl REST API paths are configuration until verified on a real device.** Do not invent endpoints,
-   fields, ports or firmware behaviour; quote the documentation page that gives them.
+5. **Pearl REST API: use only what Epiphan's OpenAPI spec and the kb.epiphan.com pages say** (verified
+   2026-10-14, see `docs/ARCHITECTURE.md`). Do not invent endpoints, fields, ports or firmware behaviour.
+   Re-verify on a real device before trusting timing, error cases or anything the spec leaves open.
 6. Internal Epiphan documents and customer data never go into this repository.
 
 ## Data model

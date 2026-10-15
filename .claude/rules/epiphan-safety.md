@@ -4,7 +4,7 @@
   CMS events, presets, `switch_device_to_cms`, `batch_reboot`, `batch_firmware_update`) asks first and names the
   device, channel and expected effect. Reboot and firmware update interrupt live recordings and streams.
 - Never the DEV or STAGING connectors. Never `Epiphan_Ai` (customer data) from this project.
-- The visible team is Epiphan's demo fleet, shared with the sales team. Record on it only in a session where Tim
+- Develop and record on Tim's own bench devices (`docs/HARDWARE.md`). The Edge team sometimes visible is Epiphan's demo fleet, shared with the sales team. Record on it only in a session where Tim
   says so. Prefer a six-channel Pearl-2, and check free storage first: a full disk overwrites the oldest files.
 - Mask stream keys, passwords and credentialed RTMP/SRT URLs (`rtmp://host/app/••••`). The PostToolUse hook
   `.claude/hooks/epiphan-redact.py` does this for MCP results; keep it registered.
