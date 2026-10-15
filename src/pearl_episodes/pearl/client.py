@@ -110,7 +110,7 @@ class PearlClient:
         return dest
 
     async def start_all(self, ids: list[str] | None = None) -> None:
-        """Bulk start. Asynchronous: the device returns once the command is accepted, not when recorders run."""
+        """Bulk start. Asynchronous: returns when the command is accepted, not when recorders are running."""
         response = await self._client.post("/recorders/control/start", params=_ids(ids))
         response.raise_for_status()
 

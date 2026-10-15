@@ -24,3 +24,11 @@ home, and a **Pearl Nano** on the way.
 The REST API works directly against a device with its admin credentials. Putting the home devices in an Edge
 team adds the MCP (reads free, writes need Premium) and the dashboard. Keep them in a team separate from
 Epiphan's demo fleet, or leave them out of Edge for the first sessions.
+
+## Containers on Pearl (Product's early view, 2026-10-14)
+
+Product has said informally that containers on Pearl Nano look feasible, but it is
+going to take kernel work. That is an expectation, not a shipped capability
+or a commitment. Pearl's Apps page already installs the Echo360 integration as a container, so the mechanism
+exists. Treat an on-device manifest writer as the stretch goal and do not describe Docker on Nano to anyone
+outside the company until Product confirms it in writing. The Nano arriving on Tim's bench is the natural test.
