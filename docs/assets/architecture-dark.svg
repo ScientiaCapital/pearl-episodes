@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="300" viewBox="0 0 880 300" role="img" aria-label="Claude Code drives Epiphan Edge, which starts and stops a Pearl recording two EC20 cameras; pearl-episodes pulls the files over the REST API and packages them as episodes for a notebook beside DROID" font-family="Söhne,-apple-system,Segoe UI,Helvetica,Arial,sans-serif">
+  <defs><marker id="head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#d7daf9"/></marker></defs>
+  <rect width="880" height="300" rx="16" fill="#0d231f"/>
+  <text x="30" y="38" font-size="12" font-weight="600" fill="#cfd3dc">OPERATE</text>
+  <rect x="30" y="56" width="170" height="60" rx="8" fill="#0c3d34" stroke="#316472"/>
+  <text x="115.0" y="80.0" text-anchor="middle" dominant-baseline="middle" font-size="14" font-weight="600" fill="#ffffff">Claude Code</text>
+  <text x="115.0" y="99.0" text-anchor="middle" dominant-baseline="middle" font-size="12" fill="#cfd3dc">write guard + redaction</text>
+  <path d="M200 86 L248 86" stroke="#d7daf9" stroke-width="2" fill="none" marker-end="url(#head)"/>
+  <rect x="250" y="56" width="150" height="60" rx="8" fill="#0c3d34" stroke="#316472"/>
+  <text x="325.0" y="80.0" text-anchor="middle" dominant-baseline="middle" font-size="14" font-weight="600" fill="#ffffff">Epiphan Edge</text>
+  <text x="325.0" y="99.0" text-anchor="middle" dominant-baseline="middle" font-size="12" fill="#cfd3dc">MCP</text>
+  <path d="M400 86 L508 86" stroke="#d7daf9" stroke-width="2" fill="none" marker-end="url(#head)"/>
+  <text x="454.0" y="77.0" text-anchor="middle" font-size="11" fill="#cfd3dc">start / stop, asks first</text>
+  <rect x="510" y="40" width="340" height="92" rx="10" fill="none" stroke="#316472" stroke-dasharray="5 4"/>
+  <text x="680" y="34" text-anchor="middle" font-size="12" font-weight="600" fill="#cfd3dc">STATION</text>
+  <rect x="526" y="56" width="130" height="60" rx="8" fill="#0c3d34" stroke="#316472"/>
+  <text x="591.0" y="86.0" text-anchor="middle" dominant-baseline="middle" font-size="14" font-weight="600" fill="#ffffff">EC20 cameras</text>
+  <path d="M656 86 L712 86" stroke="#d7daf9" stroke-width="2" fill="none" marker-end="url(#head)"/>
+  <text x="684.0" y="77.0" text-anchor="middle" font-size="11" fill="#cfd3dc">HDMI</text>
+  <rect x="714" y="56" width="120" height="60" rx="8" fill="#6651fc"/>
+  <text x="774" y="87" text-anchor="middle" dominant-baseline="middle" font-size="15" font-weight="600" fill="#ffffff">Pearl</text>
+  <path d="M774 116 L774 176 L215 176 L215 202" stroke="#d7daf9" stroke-width="2" fill="none" marker-end="url(#head)"/>
+  <text x="494" y="168" text-anchor="middle" font-size="11" fill="#cfd3dc">REST API: list, download</text>
+  <text x="30" y="196" font-size="12" font-weight="600" fill="#cfd3dc">DATA</text>
+  <rect x="130" y="204" width="170" height="60" rx="8" fill="#0c3d34" stroke="#316472"/>
+  <text x="215.0" y="228.0" text-anchor="middle" dominant-baseline="middle" font-size="14" font-weight="600" fill="#ffffff">pearl-episodes</text>
+  <text x="215.0" y="247.0" text-anchor="middle" dominant-baseline="middle" font-size="12" fill="#cfd3dc">pull, package</text>
+  <path d="M300 234 L348 234" stroke="#d7daf9" stroke-width="2" fill="none" marker-end="url(#head)"/>
+  <rect x="350" y="204" width="250" height="60" rx="8" fill="#0c3d34" stroke="#316472"/>
+  <text x="475.0" y="228.0" text-anchor="middle" dominant-baseline="middle" font-size="14" font-weight="600" fill="#ffffff">episodes/</text>
+  <text x="475.0" y="247.0" text-anchor="middle" dominant-baseline="middle" font-size="12" fill="#cfd3dc">manifest, hashes, LeRobot, RLDS</text>
+  <path d="M600 234 L648 234" stroke="#d7daf9" stroke-width="2" fill="none" marker-end="url(#head)"/>
+  <rect x="650" y="204" width="200" height="60" rx="8" fill="#0c3d34" stroke="#316472"/>
+  <text x="750.0" y="228.0" text-anchor="middle" dominant-baseline="middle" font-size="14" font-weight="600" fill="#ffffff">Notebook</text>
+  <text x="750.0" y="247.0" text-anchor="middle" dominant-baseline="middle" font-size="12" fill="#cfd3dc">beside a DROID episode</text>
+  </svg>

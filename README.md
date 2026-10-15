@@ -110,17 +110,12 @@ Then the episode opens in the same notebook as a DROID episode (planned), which 
 
 ## How it fits together
 
-```mermaid
-flowchart LR
-  subgraph Station
-    C[EC20 cameras] -->|HDMI| P[Pearl]
-  end
-  E[Epiphan Edge<br/>MCP] -->|"start / stop<br/>(asks first)"| P
-  CC[Claude Code<br/>write guard + redaction] --> E
-  P -->|REST API<br/>list, download| PE[pearl-episodes<br/>pull, package]
-  PE --> EP[(episodes/<br/>manifest, hashes,<br/>LeRobot, RLDS)]
-  EP --> NB[Notebook<br/>beside DROID]
-```
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/architecture-dark.svg">
+    <img alt="Claude Code drives Epiphan Edge, which starts and stops a Pearl recording two EC20 cameras. pearl-episodes pulls the files over the REST API and packages them as episodes for a notebook beside DROID." src="docs/assets/architecture-light.svg" width="880">
+  </picture>
+</p>
 
 | Path | What it is |
 |---|---|
