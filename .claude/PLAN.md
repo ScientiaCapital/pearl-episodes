@@ -132,7 +132,7 @@ Sessions run on Tim's bench devices. The shared demo fleet is used only when Tim
 
 ## 6. Open questions for Product (answer before relying on any of them)
 
-Recorded so far: Pearl records H.264 4:2:0 8-bit (Nano also H.265), which matches how LeRobot stores colour
+Recorded so far: Pearl records H.264 4:2:0 8-bit (Nano also H.265), which matches how LeRobot stores color
 streams; depth (12-bit lossless in LeRobot) cannot ride on it and stays on the lab's stack.
 
 1. Is there a documented REST call that returns the Date and Time protocol (NTP / PTP v1 / manual)? Until there is,
@@ -142,7 +142,7 @@ streams; depth (12-bit lossless in LeRobot) cannot ride on it and stays on the l
 3. Does a multi-track file (several channels in one file) carry anything Product will state about the
    relationship between its tracks? If not, it is treated exactly like separate channel files.
 4. USB (UVC) input is documented on Pearl-2 and Pearl Mini (Mini: one UVC source at a time, 1920×1200 max) and
-   absent on Nano. Which lab cameras work in practice (ZED 2 side-by-side modes, RealSense colour) is a bench test.
+   absent on Nano. Which lab cameras work in practice (ZED 2 side-by-side modes, RealSense color) is a bench test.
 5. A second simultaneous copy of a recording, and the loss window on power loss.
 6. Simultaneous 1080p60 channel count on Pearl-2, by input type.
 7. Per-take labels by API or sidecar; a per-file hash at close; what the AFU log records and whether it can be exported.
@@ -151,7 +151,7 @@ streams; depth (12-bit lossless in LeRobot) cannot ride on it and stays on the l
    verify on the bench).
 10. Whether `created` in the archive listing is the file-open time or the take start time, and in which time zone.
 
-11. Is there any Pearl path to a bit depth above 8 bits, or is "colour video only, no depth" the wording?
+11. Is there any Pearl path to a bit depth above 8 bits, or is "color video only, no depth" the wording?
 
 ## 7. DROID is the target (decided 2026-10-14)
 

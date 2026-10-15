@@ -24,7 +24,7 @@ product does not (task, operator, clock source, hash). DROID campuses that alrea
 ## Product input
 - 2026-10-14: Product expects containers on Pearl Nano are feasible with kernel work. Expectation only, not a
   commitment. Makes the on-device manifest agent plausible on the Nano bench unit.
-- 2026-10-14: Pearl records H.264 (Nano also H.265), 4:2:0, 8-bit. For colour video that matches what LeRobot
+- 2026-10-14: Pearl records H.264 (Nano also H.265), 4:2:0, 8-bit. For color video that matches what LeRobot
   stores (yuv420p); depth needs 12-bit lossless in LeRobot, so depth stays on the lab's own stack.
 
 ## Decisions

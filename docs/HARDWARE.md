@@ -22,7 +22,7 @@ workspace independently:
 - Local SSD; set the channel bitrate high (not auto) and leave the file type MP4 if Edge will control it.
 - Edge for remote start, stop and status.
 
-What it records: colour video only, H.264 4:2:0 8-bit. Depth and robot state stay on the lab's own stack. It does
+What it records: color video only, H.264 4:2:0 8-bit. Depth and robot state stay on the lab's own stack. It does
 not record the lab's ZED feeds: a USB camera connects to one host, and a ZED 2's UVC stream is side-by-side stereo
 (3840×1080, 2560×720 or 1344×376, per Stereolabs), so only its smallest mode fits the Mini's 1920×1200 limit.
 
@@ -35,7 +35,7 @@ not record the lab's ZED feeds: a USB camera connects to one host, and a ZED 2's
 4. Pull, hash and write the manifest. Open the file in a player with the manifest beside it.
 5. Package one take with no re-encode and once at LeRobot's default (AV1, `yuv420p`, crf 30); compare size and
    image quality. This is the number Product asked for.
-6. Bench tests, not claims: a ZED 2 (1344×376 mode) and a RealSense colour stream on the Mini's USB input.
+6. Bench tests, not claims: a ZED 2 (1344×376 mode) and a RealSense color stream on the Mini's USB input.
 7. Add the Nano and run a take through bulk start and stop. Record `clock_source` for each device from its Date
    and Time page. Do not interpret it or claim anything about alignment.
 
