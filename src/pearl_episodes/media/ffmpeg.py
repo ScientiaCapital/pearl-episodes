@@ -12,6 +12,7 @@ import os
 from functools import partial
 from pathlib import Path
 
+import numpy as np
 from anyio import to_thread
 from pydantic import BaseModel, ConfigDict
 
@@ -96,3 +97,25 @@ async def concat_copy(parts: list[Path], out: Path) -> None:
     finally:
         await to_thread.run_sync(partial(listing.unlink, missing_ok=True))
         await to_thread.run_sync(partial(part.unlink, missing_ok=True))
+
+
+async def sample_frames(path: Path, total: int, info: StreamInfo, max_width: int = 150) -> np.ndarray:
+    """Decode about `min(total, 100..10000)` evenly spaced frames from the first `total` frames, downscaled to
+    at most `max_width` pixels wide. Returns uint8 RGB, shape `(count, height, width, 3)`.
+
+    The sample size follows the heuristic LeRobot uses for its image statistics (100 frames minimum, growing
+    with length to a cap). Only the stats read these frames; the exported video is never re-encoded."""
+    wanted = total if total < 100 else max(100, min(int(total**0.75), 10_000))
+    step = max(1, total // wanted)
+    width = min(info.width, max_width)
+    height = max(1, round(info.height * width / info.width))
+    scale = f",scale={width}:{height}" if width != info.width else ""
+    out = await _run(
+        "ffmpeg", "-v", "error", "-i", str(path),
+        "-vf", f"select='lt(n\\,{total})*not(mod(n\\,{step}))'{scale}",
+        "-fps_mode", "passthrough", "-f", "rawvideo", "-pix_fmt", "rgb24", "-",
+    )  # fmt: skip
+    frame_bytes = width * height * 3
+    if not out or len(out) % frame_bytes:
+        raise RemuxError(f"{path.name}: could not decode frames for statistics")
+    return np.frombuffer(out, dtype=np.uint8).reshape(-1, height, width, 3)

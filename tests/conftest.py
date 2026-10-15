@@ -22,7 +22,7 @@ needs_ffmpeg = pytest.mark.skipif(not FFMPEG_AVAILABLE, reason="ffmpeg and ffpro
 
 
 def make_mp4(
-    path: Path, *, frames: int = 10, size: str = "64x36", rate: int = 10, pix_fmt: str = "yuv420p"
+    path: Path, *, frames: int = 10, size: str = "64x36", rate: int | str = 10, pix_fmt: str = "yuv420p"
 ) -> Path:
     """A tiny generated H.264 clip (ffmpeg test pattern). No real footage is ever used in tests."""
     path.parent.mkdir(parents=True, exist_ok=True)

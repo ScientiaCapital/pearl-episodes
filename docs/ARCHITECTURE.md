@@ -27,6 +27,30 @@
   from the episode directory.
 - `load_manifest` reads version 1 manifests (one file per camera) and upgrades them to one segment per camera.
 
+## LeRobot v3.0 export
+
+`pearl-episodes export <episode_dir>` writes `<episode_dir>/lerobot` from a packaged episode
+(`src/pearl_episodes/export/lerobot_v3.py`). The layout follows `lerobot` 0.6.1 (checked 2026-10-15 against its
+`lerobot/datasets/utils.py` and `dataset_metadata.py`): `meta/info.json` (`codebase_version "v3.0"`),
+`meta/stats.json`, `meta/tasks.parquet`, `meta/episodes/chunk-000/file-000.parquet`,
+`data/chunk-000/file-000.parquet`, `videos/observation.images.<channel_name>/chunk-000/file-000.mp4`.
+
+- Pearl's H.264 is copied as it is. The `video.*` values (`codec`, `pix_fmt`, `height`, `width`, `fps`) come
+  from ffprobe on the joined file. Encoder settings LeRobot would add when it encodes (`video.g`, `video.crf`,
+  `video.preset`) are absent, because Pearl was the encoder.
+- No `action` and no `observation.state`: Pearl records video only. A lab joins its own step table.
+- The step table has one row per frame of the shortest camera, `timestamp = frame_index / fps`. The format
+  indexes cameras by frame number; this code claims nothing about timing between cameras. When frame counts
+  differ, the manifest gets an incident and each video is kept in full.
+- Refused with a clear error: cameras with different frame rates, a non-integer frame rate (LeRobot stores
+  `fps` as an integer), two camera names that make the same key.
+- LeRobot's `merge_datasets` needs `video.codec`, `video.pix_fmt`, `video.height`, `video.width` and
+  `video.fps` to match across sources, so a Pearl episode sits beside a DROID episode, not inside it, unless
+  it is re-encoded (bench issue #11 measures that).
+- Verified: `tests/test_lerobot_loader.py` opens an export with `LeRobotDataset` (lerobot 0.6.1, `pyav`
+  backend) and decodes the first and last frame. `torchcodec`, LeRobot's default decoder, supports FFmpeg 4
+  to 8; with FFmpeg 9 installed it cannot load and LeRobot falls back to `pyav` by itself.
+
 ## Pearl REST API (verified against the published OpenAPI spec, 2026-10-14)
 
 Source: `epiphan-video/pearl_api_swagger_ui`, `api/v2.0/openapi.yml`, 64 paths, and the kb.epiphan.com REST
