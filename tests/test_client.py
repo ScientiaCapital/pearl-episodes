@@ -267,3 +267,68 @@ async def test_recorder_status_rejects_an_unknown_state() -> None:
     async with _client({"status": "ok", "result": {"state": "paused"}}) as client:
         with pytest.raises(ValidationError):
             await client.recorder_status_one("1")
+
+
+# Issue #13: gaps found in the 2026-10-14 test review.
+
+
+async def test_listing_with_exactly_one_full_page_asks_once_more_and_stops() -> None:
+    seen: list[int] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        start = int(request.url.params["from"])
+        seen.append(start)
+        items = [_file(i) for i in range(start, PAGE_SIZE)]
+        return httpx.Response(200, json={"status": "ok", "result": items})
+
+    async with PearlClient(_settings(), transport=httpx.MockTransport(handler)) as client:
+        files = await client.list_recordings("1")
+    assert len(files) == PAGE_SIZE and seen == [0, PAGE_SIZE]
+
+
+async def test_a_device_that_ignores_from_raises_instead_of_paging_forever() -> None:
+    calls = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        assert calls <= 3, "runaway paging: the client never noticed the page repeating"
+        return httpx.Response(200, json={"status": "ok", "result": [_file(i) for i in range(PAGE_SIZE)]})
+
+    async with PearlClient(_settings(), transport=httpx.MockTransport(handler)) as client:
+        with pytest.raises(PearlApiError, match="advance"):
+            await client.list_recordings("1")
+
+
+async def test_requests_carry_a_basic_auth_header() -> None:
+    headers: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        headers.append(request.headers["authorization"])
+        return httpx.Response(200, json={"status": "ok", "result": []})
+
+    async with PearlClient(_settings(), transport=httpx.MockTransport(handler)) as client:
+        await client.list_recorders()
+    assert headers == ["Basic YWRtaW46eA=="]  # base64 of "admin:x"
+
+
+@pytest.mark.parametrize("action", ["start_all", "stop_all"])
+async def test_bulk_control_without_ids_sends_no_ids_filter(action: str) -> None:
+    seen: list[tuple[str, bool]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append((request.url.path, "ids" in request.url.params))
+        return httpx.Response(200, json={"status": "ok"})
+
+    async with PearlClient(_settings(), transport=httpx.MockTransport(handler)) as client:
+        await getattr(client, action)()
+    assert seen == [(f"/api/v2.0/recorders/control/{action.removesuffix('_all')}", False)]
+
+
+async def test_recorder_status_without_ids_sends_no_ids_filter() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert "ids" not in request.url.params
+        return httpx.Response(200, json={"status": "ok", "result": []})
+
+    async with PearlClient(_settings(), transport=httpx.MockTransport(handler)) as client:
+        assert await client.recorder_status() == []

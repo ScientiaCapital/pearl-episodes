@@ -188,12 +188,15 @@ class PearlClient:
 
     async def list_recordings(self, recorder_id: str) -> list[RecordingFile]:
         """All archive files for one recorder, paged with the spec's `from` and `limit` parameters."""
+        path = f"/recorders/{recorder_id}/archive/files"
         files: list[RecordingFile] = []
+        seen: set[str] = set()
         while True:
-            page = await self._get_result(
-                f"/recorders/{recorder_id}/archive/files", list, {"from": len(files), "limit": PAGE_SIZE}
-            )
+            page = await self._get_result(path, list, {"from": len(files), "limit": PAGE_SIZE})
             batch = [RecordingFile.model_validate(item) for item in page]
+            if seen & {f.id for f in batch}:
+                raise PearlApiError(path, "ok", "paging did not advance: the device ignored `from`")
+            seen.update(f.id for f in batch)
             files.extend(batch)
             if len(batch) < PAGE_SIZE:
                 return files

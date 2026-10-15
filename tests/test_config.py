@@ -14,3 +14,7 @@ def test_tls_is_verified_unless_turned_off(monkeypatch: pytest.MonkeyPatch) -> N
     assert Settings(host="pearl.test").verify_tls is True
     monkeypatch.setenv("PEARL_VERIFY_TLS", "false")
     assert Settings(host="pearl.test").verify_tls is False
+
+
+def test_base_url_is_https_with_the_documented_api_prefix() -> None:
+    assert Settings(host="pearl.test").base_url == "https://pearl.test/api/v2.0"
