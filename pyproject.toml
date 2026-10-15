@@ -3,10 +3,12 @@ name = "pearl-episodes"
 version = "0.1.0"
 description = "Record robot-learning demonstrations on Epiphan Pearl, run the stations through Epiphan Edge, and package each take as an episode in the formats labs use (LeRobot, RLDS)"
 readme = "README.md"
-license = "Apache-2.0"
-license-files = ["LICENSE"]
+license = "LicenseRef-Proprietary"
+license-files = ["LICENSE", "NOTICE"]
 keywords = ["epiphan", "pearl", "epiphan-edge", "robot-learning", "open-x-embodiment", "lerobot", "rlds", "mcp"]
 classifiers = [
+    "Private :: Do Not Upload",
+    "License :: Other/Proprietary License",
     "Development Status :: 2 - Pre-Alpha",
     "Environment :: Console",
     "Intended Audience :: Science/Research",
@@ -24,7 +26,6 @@ dependencies = [
     "httpx>=0.28.1",
     "pydantic>=2.10",
     "pydantic-settings>=2.15.0",
-    "pyyaml>=6.0.3",
 ]
 
 [project.optional-dependencies]
