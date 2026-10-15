@@ -7,14 +7,14 @@ Instructions for AI coding assistants (Claude Code, Codex, Cursor and others) wo
 
 pearl-episodes records robot-learning demonstrations on Epiphan Pearl, runs the capture stations through
 Epiphan Edge, and packages each take as an episode (LeRobot, RLDS). Python 3.12, uv, ruff, pytest with
-`asyncio_mode = auto`. Package in `src/pearl_episodes/`. CLI: `pearl-episodes doctor | list | pull | package`
-(`pull` and `package` are stubs). Private, Epiphan-owned.
+`asyncio_mode = auto`. Package in `src/pearl_episodes/`. CLI: `pearl-episodes doctor | recorders | list | pull | package | export`
+(RLDS export is not built yet). Private, Epiphan-owned.
 
 ## Commands
 
 ```bash
 uv sync --group dev
-uv run pytest -q                       # unit tests, no network
+uv run pytest -q                       # unit tests, no network; ffmpeg and ffprobe must be installed
 bash tests/hook-test.sh                # Edge write guard, redaction, secrets hook, permission rules
 uv run ruff check . && uv run ruff format --check .
 uvx pre-commit run --all-files         # plus gitleaks, shellcheck, actionlint, zizmor
@@ -56,7 +56,10 @@ uvx pre-commit run --all-files         # plus gitleaks, shellcheck, actionlint, 
 |---|---|
 | `src/pearl_episodes/pearl/client.py` | Async Pearl REST client (verified paths only) |
 | `src/pearl_episodes/episodes/manifest.py` | Episode manifest model, SHA-256 hashing |
-| `src/pearl_episodes/episodes/packager.py` | Writes `manifest.json` and `hashes.txt` |
+| `src/pearl_episodes/episodes/pull.py` | `pull`: idempotent on file id, atomic |
+| `src/pearl_episodes/episodes/packager.py` | Packages a take by remux; writes `manifest.json` and `hashes.txt` |
+| `src/pearl_episodes/media/ffmpeg.py` | ffprobe and lossless concat wrappers |
+| `src/pearl_episodes/export/lerobot_v3.py` | LeRobot v3.0 export |
 | `src/pearl_episodes/config.py` | `Settings` from `.env` (`PEARL_*`) |
 | `src/pearl_episodes/cli.py` | The CLI |
 | `.claude/hooks/` | Edge write guard and redaction (from the Edge Claude Kit), secrets hook |

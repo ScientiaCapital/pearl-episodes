@@ -39,9 +39,9 @@ recording layer beside that rig earns its place, and makes its output load in th
 | Layer | What happens | State |
 |---|---|---|
 | **Operate** | Claude Code drives Epiphan Edge over MCP: check storage and status, start and stop recording across channels, with an approval prompt before every change | Guarded and tested; session script not built |
-| **Pull** | List a recorder's files over the Pearl REST API and download them | `list` works; `pull` next |
-| **Package** | One episode per take: original files untouched, `manifest.json` with what the product doesn't record (task, operator, scene, clock source), `hashes.txt` | Manifest and hashes built; take grouping next |
-| **Export** | LeRobot layout and RLDS, keeping Pearl's H.264 as-is (no re-encode) | Designed (`.claude/PLAN.md`) |
+| **Pull** | List a recorder's files over the Pearl REST API and download them | `list`, `recorders` and `pull` work. Pull skips files already pulled and never leaves a partial file |
+| **Package** | One episode per take: original files untouched, one joined video per camera made by remux, `manifest.json` with what the product doesn't record (task, operator, scene, clock source), `hashes.txt` | Built. A take is an explicit list of file ids |
+| **Export** | LeRobot v3.0 layout and RLDS, keeping Pearl's H.264 as-is (no re-encode) | LeRobot v3.0 built and opens with LeRobot's own loader. RLDS is next |
 | **Analyze** | Open a Pearl episode in the same notebook as a DROID episode | Planned |
 
 ## What you get: one take, one episode
@@ -119,11 +119,15 @@ Then the episode opens in the same notebook as a DROID episode (planned), which 
 
 | Path | What it is |
 |---|---|
-| `src/pearl_episodes/pearl/client.py` | Async Pearl REST client: recorders, archive listing, download, bulk start/stop |
-| `src/pearl_episodes/episodes/manifest.py` | The episode manifest model and SHA-256 hashing |
-| `src/pearl_episodes/episodes/packager.py` | Writes `manifest.json` and `hashes.txt` for an episode |
+| `src/pearl_episodes/pearl/client.py` | Async Pearl REST client: recorders, status, archive listing, atomic download, bulk start/stop |
+| `src/pearl_episodes/episodes/manifest.py` | The episode manifest (schema 2) and SHA-256 hashing |
+| `src/pearl_episodes/episodes/pull.py` | `pull`: new files for one recorder, idempotent on file id |
+| `src/pearl_episodes/episodes/packager.py` | Packages a take: originals, joined video per camera, `manifest.json`, `hashes.txt` |
+| `src/pearl_episodes/media/ffmpeg.py` | ffprobe and lossless remux wrappers |
+| `src/pearl_episodes/export/lerobot_v3.py` | LeRobot v3.0 export |
 | `src/pearl_episodes/config.py` | Settings from `.env` (`PEARL_*`); the password is a `SecretStr` |
-| `src/pearl_episodes/cli.py` | `doctor`, `list`; `pull` and `package` are stubs |
+| `src/pearl_episodes/cli.py` | `doctor`, `recorders`, `list`, `pull`, `package`, `export` |
+| `notebooks/pearl_beside_droid.ipynb` | A Pearl episode beside a DROID episode (outputs cleared) |
 | `.claude/settings.json`, `.claude/hooks/` | Edge write guard, redaction and secrets hooks for Claude Code |
 | `docs/ARCHITECTURE.md` | The verified REST surface, manifest fields, rules, open product questions |
 | `docs/HARDWARE.md` | The bench and the PoC station, with kb.epiphan.com sources |

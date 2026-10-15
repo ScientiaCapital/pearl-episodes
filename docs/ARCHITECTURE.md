@@ -27,6 +27,27 @@
   from the episode directory.
 - `load_manifest` reads version 1 manifests (one file per camera) and upgrades them to one segment per camera.
 
+## DROID, the target dataset (read 2026-10-15)
+
+Sources: https://droid-dataset.github.io/droid/the-droid-dataset.html and `lerobot/droid_1.0.1` on the Hugging
+Face Hub (`meta/info.json`). The DROID site describes 76k trajectories, about 350 hours; the LeRobot copy's
+`info.json` reports 95,658 episodes and 27,630,375 frames at 15 fps. Neither page explains the difference, so
+this repo cites each number with its source and does not reconcile them.
+
+- **RLDS** (`gs://gresearch/robotics/droid`, 1.7 TB; `droid_100`, 2 GB, is the debugging subset).
+  `episode_metadata`: `recording_folderpath`, `file_path`. Each step: `is_first`, `is_last`, `is_terminal`,
+  `language_instruction`, `language_instruction_2`, `language_instruction_3`, `observation` (`gripper_position`,
+  `cartesian_position`, `joint_position`, `wrist_image_left`, `exterior_image_1_left`,
+  `exterior_image_2_left`, images `180 x 320 x 3` uint8), `action_dict`, `action`, `discount`, `reward`.
+- **Raw** (`gs://gresearch/robotics/droid_raw`, 8.7 TB): per episode `metadata_*.json`, `trajectory.h5`,
+  `recordings/MP4/*.mp4`, `*-stereo.mp4` and `recordings/SVO/*.svo`.
+- **LeRobot copy** (codebase `v3.0`): cameras `observation.images.wrist_left`, `exterior_1_left`,
+  `exterior_2_left`, each AV1, `yuv420p`, 320 x 180, 15 fps; plus state, action, language, `building`,
+  `collector_id`, `date` and camera extrinsics columns. One episode's files are about 1.7 GB (three video shards
+  of about 500 MB and about 170 MB of parquet), because v3 packs many episodes per file.
+- What a Pearl episode can fill: camera images, `is_first` / `is_last` / `is_terminal`, `language_instruction`
+  and episode metadata. It cannot fill state or action.
+
 ## LeRobot v3.0 export
 
 `pearl-episodes export <episode_dir>` writes `<episode_dir>/lerobot` from a packaged episode
@@ -86,3 +107,7 @@ event_id`. File names carry a prefix plus date and time with no documented forma
 Which lab USB cameras work on Pearl-2 and Pearl Mini UVC input in practice (documented on both; Nano has none);
 a second simultaneous copy; simultaneous 1080p60 channel count; per-take labels by API; per-file hash at close;
 custom applications on the Apps page; a REST call for the Date and Time protocol; the next Pearl.
+
+Added in Sprint 1 (`.claude/PLAN.md` section 6, items 12 and 13): the file frame rate for 59.94 and 29.97 Hz
+sources, and guidance on the key frame interval for recordings used for training. No answer from Product is
+recorded yet. An answer goes here with its written source; anything without one stays open.
