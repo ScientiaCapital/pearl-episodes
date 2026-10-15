@@ -56,7 +56,7 @@ testpaths = ["tests"]
 [tool.ruff]
 line-length = 110
 target-version = "py312"
-exclude = [".claude/hooks"]
+extend-exclude = [".claude/hooks"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "ASYNC"]
