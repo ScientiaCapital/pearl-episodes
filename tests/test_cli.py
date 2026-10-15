@@ -7,6 +7,8 @@ import httpx
 import pytest
 
 from pearl_episodes.cli import main
+from pearl_episodes.episodes.manifest import load_manifest
+from tests.conftest import make_mp4, make_pulled_folder, needs_ffmpeg
 
 PASSWORD = "not-a-real-password"
 
@@ -122,3 +124,46 @@ def test_pull_downloads_into_host_and_recorder_folders_and_exits_0(
     assert "downloaded 1" in capsys.readouterr().out
     assert main(["pull", "1"], transport=httpx.MockTransport(handler)) == 0
     assert "downloaded 0" in capsys.readouterr().out
+
+
+def _package_args(*extra: str) -> list[str]:
+    return [
+        "package", "--camera", "1", "Wide Cam", "1", "7", "--serial", "TEST-SERIAL-0001",
+        "--model", "Pearl Mini", "--firmware", "4.24.6", "--task", "pick cup", "--operator", "tim", *extra,
+    ]  # fmt: skip
+
+
+@needs_ffmpeg
+def test_package_builds_an_episode_from_pulled_files(
+    configured: None, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    monkeypatch.setenv("PEARL_EPISODES_RECORDINGS_DIR", str(tmp_path / "rec"))
+    monkeypatch.setenv("PEARL_EPISODES_OUTPUT_DIR", str(tmp_path / "eps"))
+    clip = make_mp4(tmp_path / "gen" / "7.mp4")
+    make_pulled_folder(tmp_path / "rec" / "pearl.test" / "1", {"7": clip}, {"7": "2026-12-11T17:32:10"})
+    assert main(_package_args()) == 0
+    episode = Path(capsys.readouterr().out.strip())
+    assert episode.parent == tmp_path / "eps"
+    manifest = load_manifest(episode / "manifest.json")
+    assert (manifest.task_label, manifest.operator, manifest.device_model) == (
+        "pick cup",
+        "tim",
+        "Pearl Mini",
+    )
+    assert (episode / "joined" / "1.mp4").exists()
+
+
+def test_package_of_an_id_that_was_never_pulled_is_one_stderr_line_and_exit_1(
+    configured: None, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    monkeypatch.setenv("PEARL_EPISODES_RECORDINGS_DIR", str(tmp_path / "rec"))
+    (tmp_path / "rec" / "pearl.test" / "1").mkdir(parents=True)
+    assert main(_package_args()) == 1
+    lines = _stderr_lines(capsys)
+    assert len(lines) == 1 and "not pulled" in lines[0]
+
+
+def test_package_without_settings_is_one_stderr_line_and_exit_1(capsys: pytest.CaptureFixture[str]) -> None:
+    assert main(_package_args()) == 1
+    lines = _stderr_lines(capsys)
+    assert len(lines) == 1 and "PEARL_HOST" in lines[0]
