@@ -12,15 +12,20 @@
 
 ## Episode manifest (provenance, in software)
 
-`src/pearl_episodes/episodes/manifest.py`, `schema_version` 1.
+`src/pearl_episodes/episodes/manifest.py`, `schema_version` 2. Models are frozen and reject unknown fields.
 
 - Top level: `episode_id`, `device_serial` (from Edge; not in the REST API), `device_model`, `firmware`,
-  `start_time` (device clock, as the archive listing reports it), `task_label`, `operator`, `scene`,
-  `clock_source` (`ntp` | `ptp` | `unknown`), `notes`, `schema_version`.
-- Per camera, `cameras[]`: `channel_id`, `channel_name`, `file_name`, `file_size`, `sha256`, `duration_s`.
-
-Version 2 (planned, `.claude/PLAN.md` §4) replaces the single file per camera with ordered segments, adds derived
-files with their own hashes, the session id, incidents seen during the take, and `clock_source` `manual`.
+  `start_time` (raw `created` of the first segment, device clock, never parsed), `task_label`, `operator`,
+  `scene`, `clock_source` (`ntp` | `ptp` | `manual` | `unknown`, recorded as read, never interpreted),
+  `session_id`, `notes`.
+- `cameras[]`: `channel_id`, `channel_name`, and at least one `segments[]` entry. Segments are numbered `seq`
+  0..n-1 in order. Each has `file_id`, `path` (relative to the episode directory), `created` (raw device
+  text), `duration`, `size`, `sha256` (64 lowercase hex), `recorder_id`, `event_id`.
+- `derived[]`: `path`, `sha256`, `tool`, `version` for every file made from the originals.
+- `incidents[]`: `ts`, `source`, `text`, copied verbatim from the tool that reported it.
+- `hashes.txt` lists every segment and derived file as `<sha256>  <path>`; `shasum -a 256 -c hashes.txt` passes
+  from the episode directory.
+- `load_manifest` reads version 1 manifests (one file per camera) and upgrades them to one segment per camera.
 
 ## Pearl REST API (verified against the published OpenAPI spec, 2026-10-14)
 
