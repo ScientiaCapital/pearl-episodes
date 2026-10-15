@@ -29,9 +29,11 @@ pages cited in `.claude/PLAN.md` §2. Base `/api/v2.0`, HTTP Basic auth, every r
 `{"status": "ok", "result": ...}`. The client always uses `https://` and verifies TLS unless
 `PEARL_VERIFY_TLS=false`; it assumes HTTPS is enabled on the device.
 
-Used here: `GET /recorders`, `GET /recorders/{rid}/archive/files` (paged with `from` and `limit`),
-`GET /recorders/{rid}/archive/files/{fid}` (raw media), `POST /recorders/control/start` and `/stop` (optional
-`ids` query, asynchronous), `GET /system/ident`, `GET /system/firmware`. Next to add: `GET /recorders/status`.
+Used here: `GET /recorders`, `GET /recorders/status` (optional `ids`; items carry `id`, `name`, `status`) and
+`GET /recorders/{rid}/status` (`state` is `disabled | starting | started | stopped | error`, plus `duration`,
+`active`, `total` and, on error, `description`), `GET /recorders/{rid}/archive/files` (paged with `from` and
+`limit`), `GET /recorders/{rid}/archive/files/{fid}` (raw media), `POST /recorders/control/start` and `/stop`
+(optional `ids` query, asynchronous), `GET /system/ident`, `GET /system/firmware`.
 Archive file fields: `id, name, extension, recording, downloaded, created, duration, size, recorder, uploading,
 event_id`. File names carry a prefix plus date and time with no documented format, so the manifest records
 `created` from the API and never parses the name.
