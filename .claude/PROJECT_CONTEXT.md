@@ -15,11 +15,12 @@ product does not (task, operator, clock source, hash). DROID campuses that alrea
 (`.claude/PLAN.md` §7). This project builds that, and lets Claude Code act as the station operator through Edge.
 
 ## Next session's focus
-1. [ ] Client hardening (`.claude/BACKLOG.md`, first item)
-2. [ ] First bench session on the Pearl Mini PoC station (`docs/HARDWARE.md`): confirm real responses
-3. [ ] `pearl-episodes pull`, then `package` with manifest v2
-4. [ ] LeRobot export and the notebook beside a DROID episode
-5. [ ] Bench codec test (H.264 bitrates vs LeRobot AV1)
+Sprint 1 starts 2026-10-15: milestone 1, issues #2 to #14. Day-1 order is in `.claude/TASK.md`.
+
+## 2026-10-14 close
+Safety baseline merged (PR #1, CI green); README with brand banner and static diagram; history scrubbed of
+internal content and force-pushed; PoC brief, at-a-glance and opportunity brief PDFs updated in Drive (same
+links). Known leftover: GitHub keeps PR #1's original commits under a hidden ref until GitHub Support removes it.
 
 ## Product input
 - 2026-10-14: Product expects containers on Pearl Nano are feasible with kernel work. Expectation only, not a
