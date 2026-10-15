@@ -12,9 +12,16 @@
 
 Fields: `episode_id`, `device_serial`, `device_model`, `firmware`, `channel_id`, `channel_name`, `start_time` (device clock), `duration_s`, `file_name`, `file_size`, `sha256`, `task_label`, `operator`, `scene`, `clock_source` (ntp | ptp | unknown), `notes`. Everything the product does not carry today lives here.
 
-## Pearl REST API facts to verify before use
+## Pearl REST API (verified against the published OpenAPI spec, 2026-10-14)
 
-From the product documentation (kb.epiphan.com, pearl-family/pearl-rest-api-*): recordings are listed per recorder with `id, name, extension, recording, downloaded, created, duration, size, recorder, uploading, event_id`; download is per file; the bulk start and stop endpoints are asynchronous and take an optional `ids` subset. The exact URL prefix and auth scheme must be confirmed on a real device before the client is trusted. File names carry a prefix plus date and time; the format is not documented, so the manifest records `created` from the API and never parses the name.
+Source: `epiphan-video/pearl_api_swagger_ui`, `api/v2.0/openapi.yml`, 64 paths. Base `/api/v2.0`, HTTP Basic
+auth, `https://` when HTTPS is enabled on the device, every response `{"status": "ok", "result": ...}`.
+Used here: `GET /recorders`, `GET /recorders/{rid}/archive/files` (paged with `from` and `limit`),
+`GET /recorders/{rid}/archive/files/{fid}` (raw media), `POST /recorders/control/start` and `/stop` (optional
+`ids` query, asynchronous), `GET /system/ident`, `GET /system/firmware`. Archive file fields: `id, name,
+extension, recording, downloaded, created, duration, size, recorder, uploading, event_id`. The spec carries no
+serial number; take it from Edge. File names carry a prefix plus date and time with no documented format, so
+the manifest records `created` from the API and never parses the name.
 
 ## Rules that shape the code
 

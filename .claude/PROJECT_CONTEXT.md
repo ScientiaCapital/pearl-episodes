@@ -16,8 +16,8 @@ the station operator through Epiphan Edge.
 
 ## Next session's focus
 1. [ ] Read the four Drive documents and the pro forma (`docs/context/README.md`), then `docs/ARCHITECTURE.md`
-2. [ ] Verify the Pearl REST API prefix and auth on one demo device (Broadcast Studio or Council Chamber) and
-       fix `config.py` defaults; quote the kb.epiphan.com page used
+2. [x] Pearl REST API checked against Epiphan's OpenAPI spec 2026-10-14 (base `/api/v2.0`, Basic auth). Still to
+       do: first bench session on Tim's Pearl Mini + EC20 (`docs/HARDWARE.md`), confirm real responses
 3. [ ] `pearl-episodes pull`: new recordings for a recorder to `recordings/<serial>/`, idempotent on file id
 4. [ ] `pearl-episodes package`: one episode directory per take, stitch rolled segments, write manifest + hashes
 5. [ ] LeRobot layout writer and a notebook that loads one packaged episode beside a DROID episode
