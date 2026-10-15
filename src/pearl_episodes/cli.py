@@ -1,4 +1,4 @@
-"""pearl-episodes: doctor | recorders | list | pull | package
+"""pearl-episodes: doctor | recorders | list | pull | package | export
 
 Every expected failure (settings missing, device unreachable, HTTP error, bad envelope) prints one line to
 stderr and exits 1. Anything else is a bug and raises.
@@ -10,6 +10,7 @@ import argparse
 import asyncio
 import sys
 from collections.abc import Awaitable, Callable
+from pathlib import Path
 
 import httpx
 from pydantic import ValidationError
@@ -18,6 +19,7 @@ from pearl_episodes import __version__
 from pearl_episodes.config import Settings
 from pearl_episodes.episodes.packager import CameraInput, TakeLabels, package_take
 from pearl_episodes.episodes.pull import pull
+from pearl_episodes.export.lerobot_v3 import ExportError, export_lerobot_v3
 from pearl_episodes.media.ffmpeg import RemuxError
 from pearl_episodes.pearl.client import PearlApiError, PearlClient
 
@@ -124,6 +126,17 @@ def _package(args: argparse.Namespace) -> int:
     return 0
 
 
+def _export(args: argparse.Namespace) -> int:
+    """Export a packaged episode as a LeRobot v3.0 dataset directory. Needs ffmpeg, not the device."""
+    try:
+        lerobot = asyncio.run(export_lerobot_v3(Path(args.episode_dir)))
+    except (ValueError, FileExistsError, FileNotFoundError, ExportError, RemuxError) as exc:
+        print(f"export: {exc}", file=sys.stderr)
+        return 1
+    print(lerobot)
+    return 0
+
+
 def main(argv: list[str] | None = None, transport: Transport = None) -> int:
     parser = argparse.ArgumentParser(prog="pearl-episodes")
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -135,6 +148,10 @@ def main(argv: list[str] | None = None, transport: Transport = None) -> int:
         "pull", help="download new recordings from one recorder, skipping those already pulled"
     )
     p_pull.add_argument("recorder_id")
+    p_exp = sub.add_parser(
+        "export", help="export a packaged episode as a LeRobot v3.0 dataset (no re-encode)"
+    )
+    p_exp.add_argument("episode_dir")
     p_pkg = sub.add_parser(
         "package", help="package pulled files of one take as an episode (remux, no re-encode)"
     )
@@ -164,6 +181,8 @@ def main(argv: list[str] | None = None, transport: Transport = None) -> int:
         return _run(lambda client, settings: _list(client, settings, args.recorder_id), transport)
     if args.cmd == "pull":
         return _run(lambda client, settings: _pull(client, settings, args.recorder_id), transport)
+    if args.cmd == "export":
+        return _export(args)
     return _package(args)
 
 

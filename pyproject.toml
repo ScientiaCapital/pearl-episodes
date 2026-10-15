@@ -25,13 +25,18 @@ requires-python = ">=3.12"
 dependencies = [
     "anyio>=4.15",
     "httpx>=0.28.1",
+    # Export layouts. Ranges stay inside what lerobot 0.6.1 allows, so the optional datasets extra resolves.
+    "numpy>=2.0,<2.3",
+    "pandas>=2.0,<3",
+    "pyarrow>=21",
     "pydantic>=2.10",
     "pydantic-settings>=2.15.0",
 ]
 
 [project.optional-dependencies]
-# Heavy, install on purpose: `uv sync --extra datasets`. Versions unpinned until first verified install on Apple silicon.
-datasets = ["lerobot", "tensorflow", "tensorflow-datasets"]
+# Heavy, install on purpose: `uv sync --extra datasets`. lerobot 0.6.1 is verified: its own loader opens the
+# export (tests/test_lerobot_loader.py). tensorflow stays unpinned until the RLDS exporter exists.
+datasets = ["lerobot[dataset,av-dep]==0.6.1", "tensorflow", "tensorflow-datasets"]
 
 [project.urls]
 Source = "https://github.com/ScientiaCapital/pearl-episodes"
@@ -54,6 +59,7 @@ dev = [
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+markers = ["datasets: needs the optional datasets extra (lerobot); skipped when it is not installed"]
 
 [tool.ruff]
 line-length = 110

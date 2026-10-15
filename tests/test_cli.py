@@ -167,3 +167,28 @@ def test_package_without_settings_is_one_stderr_line_and_exit_1(capsys: pytest.C
     assert main(_package_args()) == 1
     lines = _stderr_lines(capsys)
     assert len(lines) == 1 and "PEARL_HOST" in lines[0]
+
+
+@needs_ffmpeg
+def test_export_writes_the_lerobot_directory_and_prints_it(
+    configured: None, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    monkeypatch.setenv("PEARL_EPISODES_RECORDINGS_DIR", str(tmp_path / "rec"))
+    monkeypatch.setenv("PEARL_EPISODES_OUTPUT_DIR", str(tmp_path / "eps"))
+    clip = make_mp4(tmp_path / "gen" / "7.mp4")
+    make_pulled_folder(tmp_path / "rec" / "pearl.test" / "1", {"7": clip}, {"7": "2026-12-11T17:32:10"})
+    assert main(_package_args("--episode-id", "ep-0001")) == 0
+    episode = Path(capsys.readouterr().out.strip())
+    assert main(["export", str(episode)]) == 0
+    assert Path(capsys.readouterr().out.strip()) == episode / "lerobot"
+    assert (episode / "lerobot" / "meta" / "info.json").exists()
+    assert main(["export", str(episode)]) == 1
+    lines = _stderr_lines(capsys)
+    assert len(lines) == 1 and "already exists" in lines[0]
+
+
+def test_export_of_a_folder_without_a_manifest_is_one_stderr_line_and_exit_1(
+    capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    assert main(["export", str(tmp_path)]) == 1
+    assert len(_stderr_lines(capsys)) == 1
