@@ -28,7 +28,25 @@ Team → Devices (`Id`) → Channels (`channel_id`) → recording_status, publis
 `<device_id>-<channel_id>`. Pearl rolls a recording into a new file at 30 minutes or 500 MB by default, so one
 take can be several files; a channel controlled by Edge must record MP4 with a 500 MB maximum file size.
 
+## Pipeline (CLI)
+`pull <recorder_id>` puts new files in `recordings/<host>/<recorder_id>/` with an `index.jsonl`. `package --camera
+...` builds `episodes/<id>/` (`source/`, `joined/`, `manifest.json`, `hashes.txt`) by remux, never a re-encode.
+`export <episode_dir>` adds `lerobot/` (v3.0). Existing episodes and exports are never overwritten. Segments are
+ordered by the device's raw `created` text, then file id; never parse file names or times.
+
 ## Gotchas
+- `ffmpeg` and `ffprobe` must be installed. Tests that need them skip without them; CI installs them.
+- CI syncs with `--frozen`: after changing dependencies in `pyproject.toml`, run `uv lock` and commit it.
+- Notebooks are committed with outputs cleared (pre-commit hook `notebook-outputs-cleared`), because frames can
+  show people. Run them from a scratch copy and keep executed copies outside the repo.
+- CI skips `tests/test_lerobot_loader.py` (needs the `datasets` extra). After any lerobot change, run it in a
+  scratch venv outside the repo:
+  `uv venv <dir> --python 3.12 && uv pip install --python <dir>/bin/python "lerobot[dataset,av-dep]==0.6.1" pytest pytest-asyncio httpx pydantic pydantic-settings anyio`,
+  then `PYTHONPATH=src <dir>/bin/python -m pytest -m datasets tests/test_lerobot_loader.py`.
+- `torchcodec` (LeRobot's default decoder) supports FFmpeg 4 to 8. With FFmpeg 9 installed LeRobot falls back to
+  `pyav`, and `StreamingLeRobotDataset` (torchcodec only in 0.6.1) cannot run. Tests and the notebook use `pyav`.
+- Run the gate with `&&` so a failure stops the commit: ruff check and format, pytest, `bash tests/hook-test.sh`,
+  `uvx pre-commit run --all-files`. A PR's Evidence section comes from the final commit.
 - The hooks need `jq`. Without it `check-secrets.sh` denies every file write and the redactor withholds output.
 - A test that needs a fake secret builds it from pieces (see `tests/hook-test.sh`), or `check-secrets.sh` denies
   the write. `tests/redaction-cases.json` is allowlisted in `.gitleaks.toml` and stays byte-identical with the Edge

@@ -30,9 +30,9 @@ institutions, many of them campuses that already run Pearl. Their recording stac
 workstation running open-source software. This project tests whether an independent, remotely operated
 recording layer beside that rig earns its place, and makes its output load in the lab's own tools.
 
-> **Status: early.** `doctor` and `list` work against one Pearl. The REST client, the episode manifest and
-> SHA-256 hashing exist and are tested. `pull`, `package` and the LeRobot/RLDS exports are next. Nothing has
-> run against a lab. See [Status](#status).
+> **Status: early.** The pipeline runs end to end on test patterns. `pull`, `package` and the LeRobot v3.0
+> export are built and tested, and a notebook opens an episode beside DROID. Nothing has run against a real
+> Pearl take, a lab or more than one device yet. See [Status](#status).
 
 ## What it does
 
@@ -42,7 +42,7 @@ recording layer beside that rig earns its place, and makes its output load in th
 | **Pull** | List a recorder's files over the Pearl REST API and download them | `list`, `recorders` and `pull` work. Pull skips files already pulled and never leaves a partial file |
 | **Package** | One episode per take: original files untouched, one joined video per camera made by remux, `manifest.json` with what the product doesn't record (task, operator, scene, clock source), `hashes.txt` | Built. A take is an explicit list of file ids |
 | **Export** | LeRobot v3.0 layout and RLDS, keeping Pearl's H.264 as-is (no re-encode) | LeRobot v3.0 built and opens with LeRobot's own loader. RLDS is next |
-| **Analyze** | Open a Pearl episode in the same notebook as a DROID episode | Planned |
+| **Analyze** | Open a Pearl episode in the same notebook as a DROID episode | Built (`notebooks/pearl_beside_droid.ipynb`) |
 
 ## What you get: one take, one episode
 
@@ -50,18 +50,20 @@ Two EC20s record a take on the Pearl Mini PoC station. `pearl-episodes` packages
 
 ```text
 episodes/2026-10-14_pick-cup_0007/
-├── manifest.json     what the product doesn't record: task, operator, scene, clock source, per-file hashes
+├── manifest.json     what the product doesn't record: task, operator, scene, clock source, hashes
 ├── hashes.txt        sha256 of every file, in `shasum -a 256 -c` format
-├── source/           the Pearl's original MP4s, untouched              (next: pull)
-├── lerobot/          LeRobot layout, Pearl's H.264 kept as-is          (next: export)
+├── source/           the Pearl's original MP4s, untouched, one folder per channel
+├── joined/           one video per camera, segments joined by remux (no re-encode)
+├── lerobot/          LeRobot v3.0 layout, Pearl's H.264 kept as-is
 └── rlds/             RLDS episode for Open X-Embodiment tools          (planned)
 ```
 
-This `manifest.json` was written by the real packager (`EpisodeManifest` → `package()`) from two stand-in files;
-the serial is a placeholder:
+This `manifest.json` was written by the real packager (`EpisodeManifest` → `package()`) from stand-in files.
+The serial, hashes and tool version are placeholders:
 
 ```json
 {
+  "schema_version": 2,
   "episode_id": "2026-10-14_pick-cup_0007",
   "device_serial": "TEST-SERIAL-0001",
   "device_model": "Pearl Mini",
@@ -71,30 +73,64 @@ the serial is a placeholder:
     {
       "channel_id": "1",
       "channel_name": "exterior-left",
-      "file_name": "EC20-A_Oct14_10-02-11.mp4",
-      "file_size": 25,
-      "sha256": "18526856fd74d7c45803f7e340220ef56f6d1bf527baa819e6ec15e3eb8efde4",
-      "duration_s": 62.0
+      "segments": [
+        {
+          "seq": 0,
+          "file_id": "7",
+          "path": "source/1/7.mp4",
+          "created": "2026-10-14T10:02:11",
+          "duration": 62,
+          "size": 34,
+          "sha256": "4f0fa1c6809e040b17201a56d6dcb73b2f1556508f4feffc88d12dd9f6fc8ba7",
+          "recorder_id": "1",
+          "event_id": null
+        }
+      ]
     },
     {
       "channel_id": "2",
       "channel_name": "exterior-right",
-      "file_name": "EC20-B_Oct14_10-02-11.mp4",
-      "file_size": 35,
-      "sha256": "eee801a6a20439825ee43a83f35a84ce686187c9aad021ee36882a8ff9808d51",
-      "duration_s": 62.0
+      "segments": [
+        {
+          "seq": 0,
+          "file_id": "7",
+          "path": "source/2/7.mp4",
+          "created": "2026-10-14T10:02:11",
+          "duration": 62,
+          "size": 34,
+          "sha256": "5829f04dacf71219e1191c65719896a7b46dc0d9dbf3434a8663c6cc8942d2f1",
+          "recorder_id": "2",
+          "event_id": null
+        }
+      ]
     }
   ],
+  "derived": [
+    {
+      "path": "joined/1.mp4",
+      "sha256": "fa643730bb51bc03d96befaa27a0fe261d66ef589a1b94b03eaa97ce4afd247c",
+      "tool": "ffmpeg",
+      "version": "9.0.2"
+    },
+    {
+      "path": "joined/2.mp4",
+      "sha256": "0ece4cd34a71c47aad12c4dc16bb7d0601d70ac4a2634f0248de6f30a19793b9",
+      "tool": "ffmpeg",
+      "version": "9.0.2"
+    }
+  ],
+  "session_id": null,
+  "incidents": [],
   "task_label": "pick up the cup and place it in the bin",
   "operator": "op-02",
   "scene": "bench-desk",
   "clock_source": "ntp",
-  "notes": "",
-  "schema_version": 1
+  "notes": ""
 }
 ```
 
-Then the episode opens in the same notebook as a DROID episode (planned), which is the demo for a lab.
+Then the episode opens in the same notebook as a DROID episode (`notebooks/pearl_beside_droid.ipynb`), which is
+the demo for a lab.
 
 ## What a station records, plainly
 
@@ -128,6 +164,7 @@ Then the episode opens in the same notebook as a DROID episode (planned), which 
 | `src/pearl_episodes/config.py` | Settings from `.env` (`PEARL_*`); the password is a `SecretStr` |
 | `src/pearl_episodes/cli.py` | `doctor`, `recorders`, `list`, `pull`, `package`, `export` |
 | `notebooks/pearl_beside_droid.ipynb` | A Pearl episode beside a DROID episode (outputs cleared) |
+| `scripts/make_synthetic_take.py`, `scripts/codec_compare.sh` | A test-pattern take for demos; the bench codec test commands |
 | `.claude/settings.json`, `.claude/hooks/` | Edge write guard, redaction and secrets hooks for Claude Code |
 | `docs/ARCHITECTURE.md` | The verified REST surface, manifest fields, rules, open product questions |
 | `docs/HARDWARE.md` | The bench and the PoC station, with kb.epiphan.com sources |
@@ -135,20 +172,28 @@ Then the episode opens in the same notebook as a DROID episode (planned), which 
 
 ## Quick start
 
-Needs macOS or Linux, [uv](https://docs.astral.sh/uv/), and `jq` (for the Claude Code hooks).
+Needs macOS or Linux, [uv](https://docs.astral.sh/uv/), `jq` (for the Claude Code hooks), and `ffmpeg` with
+`ffprobe` (for `package`, `export` and the tests).
 
 ```bash
 git clone https://github.com/ScientiaCapital/pearl-episodes.git && cd pearl-episodes
 uv sync --group dev
 uv run pytest -q                 # unit tests, no network
 bash tests/hook-test.sh          # guard, redaction and secrets hooks
+uv run python scripts/make_synthetic_take.py demo   # a test-pattern take, packaged and exported; no device
 cp .env.example .env             # one Pearl's host and admin password
 uv run pearl-episodes doctor     # environment and settings check
-uv run pearl-episodes list 1     # files on recorder 1 (ids come from GET /recorders)
+uv run pearl-episodes recorders  # id, name, multisource
+uv run pearl-episodes list 1     # files on recorder 1
+uv run pearl-episodes pull 1     # new files into recordings/<host>/1/
+uv run pearl-episodes package --camera 1 "Wide Cam" 1 7,8 --serial <serial> --model "Pearl Mini" \
+  --firmware <version> --task "pick up the cup"
+uv run pearl-episodes export episodes/<episode_id>
 ```
 
-A bench Pearl with a self-signed certificate needs `PEARL_VERIFY_TLS=false` in `.env`. TLS is verified by
-default. `uv sync --extra datasets` adds LeRobot, TensorFlow and TFDS; they are large and installed on purpose.
+The serial number comes from Edge, because the REST API does not report it. A bench Pearl with a self-signed
+certificate needs `PEARL_VERIFY_TLS=false` in `.env`. TLS is verified by default. `uv sync --extra datasets`
+adds LeRobot 0.6.1, TensorFlow, TFDS, matplotlib and JupyterLab; they are large and installed on purpose.
 
 ## Working with Claude Code and Epiphan Edge
 
@@ -192,11 +237,13 @@ contributors and AI assistants are in [CONTRIBUTING.md](CONTRIBUTING.md) and [AG
 
 ## Status
 
-- **Works:** `doctor`; `list` against one Pearl; the REST client (verified against Epiphan's OpenAPI spec and the
-  kb REST pages); the manifest and hashing; the Claude Code safety hooks.
-- **Next:** client hardening (response checks, verified downloads), `pull`, `package` with manifest v2, the
-  LeRobot export and the DROID side-by-side notebook, then a bench codec test on the PoC station.
-- **Not yet run:** against a lab, against more than one device, or with an RLDS export.
+- **Works:** the REST client, checked against Epiphan's OpenAPI spec and the kb REST pages; `doctor`,
+  `recorders`, `list` and `pull`; packaging by remux with manifest v2; the LeRobot v3.0 export, which opens in
+  LeRobot's own loader; the DROID side-by-side notebook; the Claude Code safety hooks. All of it is tested with
+  generated clips and mocked transports.
+- **Next:** a bench session on the Pearl Mini with a first real take, real fixtures, a codec test and USB
+  cameras. Then the RLDS export and the operator session script.
+- **Not yet run:** against a real Pearl take, against a lab, or against more than one device.
 - **Open product questions** are listed in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md); the code doesn't guess
   at them.
 
