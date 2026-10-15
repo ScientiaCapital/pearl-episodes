@@ -1,20 +1,64 @@
-.venv/
-__pycache__/
-*.pyc
-.pytest_cache/
-.ruff_cache/
-dist/
-build/
-.claude/settings.local.json
-.claude/worktrees/
+# Secrets and local config. .env.example is the only env file that belongs in git.
 .env
 .env.*
 !.env.example
-.DS_Store
 *.pem
 *.key
-# Local recordings, episodes and internal documents never go to GitHub
-recordings/
-episodes/
-docs/context/*.pdf
-docs/context/*.xlsx
+*.p12
+.claude/settings.local.json
+.claude/worktrees/
+
+# Recordings, episodes and session logs. They can show people and name devices and operators, so they never
+# leave this machine. Root-anchored: an unanchored `episodes/` would also hide src/pearl_episodes/episodes/.
+/recordings/
+/episodes/
+/sessions/
+# Media and dataset files anywhere in the tree, in case one is pulled or exported to the wrong folder
+*.mp4
+*.mov
+*.m4v
+*.mkv
+*.avi
+*.ts
+*.svo
+*.svo2
+*.bag
+*.mcap
+*.tfrecord
+*.tfrecord-*
+*.parquet
+*.h264
+*.h265
+*.jpg
+*.jpeg
+*.png
+!docs/assets/*.png
+
+# Internal documents are linked from docs/context/README.md, never committed
+/docs/context/*
+!/docs/context/README.md
+/planning/
+
+# Notebooks: outputs can embed frames, so commit only cleared notebooks from notebooks/
+.ipynb_checkpoints/
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# OS and editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
