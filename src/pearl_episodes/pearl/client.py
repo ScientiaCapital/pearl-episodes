@@ -56,7 +56,7 @@ class PearlClient:
     def __init__(self, settings: Settings, transport: httpx.AsyncBaseTransport | None = None) -> None:
         self._client = httpx.AsyncClient(
             base_url=settings.base_url,
-            auth=(settings.username, settings.password),
+            auth=(settings.username, settings.password.get_secret_value()),
             verify=settings.verify_tls,
             timeout=30.0,
             transport=transport,
