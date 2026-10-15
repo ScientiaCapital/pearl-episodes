@@ -7,7 +7,8 @@ Paste this into a fresh `claude` session in this repository.
 Start by reading, in this order, and do not write code until you have:
 
 1. `CLAUDE.md`, `.claude/PROJECT_CONTEXT.md`, `docs/ARCHITECTURE.md`.
-2. The four documents and the model on Google Drive (use the Google Drive connector; links in
+2. The four documents and the model in the Google Drive folder **Physical-AI-Capture**
+   (https://drive.google.com/drive/folders/1iBqdruZnoKiwFByEBiirPeGuHqUM3e0R; use the Google Drive connector, folder id `1iBqdruZnoKiwFByEBiirPeGuHqUM3e0R`; direct links in
    `docs/context/README.md`):
    - Epiphan-Physical-AI-Capture-Opportunity-Brief.pdf, the market and Epiphan's play
    - Epiphan-Physical-AI-Capture-At-A-Glance.pdf, the two-page version

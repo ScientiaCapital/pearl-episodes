@@ -2,6 +2,8 @@
 
 Internal Epiphan documents. Linked, not committed.
 
+**Google Drive folder:** [Physical-AI-Capture](https://drive.google.com/drive/folders/1iBqdruZnoKiwFByEBiirPeGuHqUM3e0R) (folder id `1iBqdruZnoKiwFByEBiirPeGuHqUM3e0R`). Everything below lives there.
+
 | Document | Google Drive | Local copy |
 |---|---|---|
 | Opportunity brief (8 pages) | https://drive.google.com/file/d/1gP6nazviub9n_OBMHXVdzvakbzVyjTb-/view | Epiphan-Physical-AI-Capture-Opportunity-Brief.pdf |
