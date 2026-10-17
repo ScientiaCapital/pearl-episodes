@@ -20,7 +20,9 @@ product does not (task, operator, clock source, hash). DROID campuses that alrea
 (`.claude/PLAN.md` §7). This project builds that, and lets Claude Code act as the station operator through Edge.
 
 ## Next session's focus
-Bench day (Tim, with the Pearl Mini): #10 first session and real fixtures, #11 codec test (`scripts/` has no helper yet), #12 USB cameras. #14 waits on Product's written answers. Then RLDS export and the operator session script (`.claude/BACKLOG.md`).
+Bench day (Tim, with the Pearl Mini): #10 first session and real fixtures, #11 codec test (`scripts/codec_compare.sh`), #12 USB cameras. #14 waits on Product's written answers. Then the operator session script, per-take labels and RLDS export (`.claude/BACKLOG.md`).
+
+Next session: bench day #10 via `/preflight` then `batch_recording` (every write asks first) once the bench Mini is visible in Edge | Tim is travelling the week of 2026-10-19, so Sprint 1's 2026-10-22 date will likely move | Est: half a day | Observer notes: no real Pearl file has been through `pull`, `package` or `export`; check HTTPS on the device first (the client assumes it).
 
 ## 2026-10-14 close
 Safety baseline merged (PR #1, CI green); README with brand banner and static diagram; history scrubbed of
