@@ -6,7 +6,8 @@
   `permissions.ask`, bypass mode off, and `.claude/hooks/epiphan-write-guard.sh` (from the Epiphan Edge Claude
   Kit), which also asks for any unknown tool on the Edge server. `EPIPHAN_READ_ONLY=1 claude` blocks writes.
 - Never the DEV or STAGING connectors. Never `Epiphan_Ai` (customer data) from this project.
-- Develop and record on Tim's own bench devices (`docs/HARDWARE.md`). The Edge team sometimes visible is
+- Develop and record on Tim's own bench devices or the Edge sandbox team (`docs/HARDWARE.md`). Confirm with
+  `get_devices_in_my_team` which team the connector is signed in to before any write. The Edge team sometimes visible is
   Epiphan's shared demo fleet. Record on it only in a session where Tim says so, prefer a six-channel Pearl-2,
   and check free storage first (`get_storage_status_for_devices`): a full disk overwrites the oldest files. Never
   write its device, room or group names into this repo.

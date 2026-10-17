@@ -1,6 +1,6 @@
 # pearl-episodes
 
-**Branch**: main | **Updated**: 2026-10-16
+**Branch**: main | **Updated**: 2026-10-17
 
 ## Status
 Sprint 1 built (2026-10-15, PRs #16 to #24): the client checks the response envelope, downloads are atomic and
@@ -22,7 +22,10 @@ product does not (task, operator, clock source, hash). DROID campuses that alrea
 ## Next session's focus
 Bench day (Tim, with the Pearl Mini): #10 first session and real fixtures, #11 codec test (`scripts/codec_compare.sh`), #12 USB cameras. #14 waits on Product's written answers. Then the operator session script, per-take labels and RLDS export (`.claude/BACKLOG.md`).
 
-Next session: bench day #10 via `/preflight` then `batch_recording` (every write asks first) once the bench Mini is visible in Edge | Tim is travelling the week of 2026-10-19, so Sprint 1's 2026-10-22 date will likely move | Est: half a day | Observer notes: no real Pearl file has been through `pull`, `package` or `export`; check HTTPS on the device first (the client assumes it).
+Next session: wait on the sandbox owner for a network path to the Edge sandbox (VPN), the Pearl-2 admin login and storage in the Mini; then #10 via `/preflight`, an Edge start and stop on the Pearl-2 (asks first), `pull`, `package`, `export` | meanwhile an Edge-only test take is possible | Tim is travelling the week of 2026-10-19, so Sprint 1's 2026-10-22 date will likely move | Est: half a day once reachable | Observer notes: no real Pearl file has been through `pull`, `package` or `export`; check HTTPS on the device first (the client assumes it).
+
+## 2026-10-17 close
+Edge sandbox team set up (Pearl-2, Pearl Mini, EC20); the claude.ai Epiphan MCP connector is signed in to it (the OAuth sign-in picks the team; a reconnect keeps the old one). Pearl-2 ready to record; Mini has no storage; EC20 offline. This Mac cannot reach the devices over the network, so `pull` waits. No code changes; docs now say where the bench devices live.
 
 ## 2026-10-14 close
 Safety baseline merged (PR #1, CI green); README with brand banner and static diagram; history scrubbed of

@@ -1,9 +1,12 @@
 # QUALITY
 
-Point-in-time audit, end of 2026-10-16 (`main` at 70d4799). Format: `[LEVEL] — file:line — what — fix`.
-Yesterday's report is in `.claude/archive/2026-10-15-OBSERVER-QUALITY.md`; its open items carry over (below).
+Point-in-time audit, end of 2026-10-17 (`main` at a4c03a4). Format: `[LEVEL] — file:line — what — fix`.
+Yesterday's report is in `.claude/archive/2026-10-16-OBSERVER-QUALITY.md`; its open items carry over (below).
 
-Today: #29 (read-only preflight), #30 (REST re-check, kb page beside each client call), #31 (README, CLAUDE.md and
+2026-10-17: no code changes; docs and planning only. Secrets sweep: gitleaks scanned 35 commits, no leaks; no `.env`,
+`.pem` or `.key` file in history. No CRITICAL or BLOCKER. Items below are unchanged from 2026-10-16.
+
+2026-10-16: #29 (read-only preflight), #30 (REST re-check, kb page beside each client call), #31 (README, CLAUDE.md and
 project context brought up to date). Gate green on each: ruff, 128 passed and 1 skipped, hook tests, pre-commit.
 Secrets sweep: gitleaks scanned 60 commits, no leaks; no `.env`, `.pem` or `.key` file in history. No CRITICAL or
 BLOCKER.
