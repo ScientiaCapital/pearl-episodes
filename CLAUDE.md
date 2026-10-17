@@ -27,6 +27,8 @@ market, the proof of concept and the measures this code has to produce. The file
 Team → Devices (`Id`) → Channels (`channel_id`) → recording_status, publishers. Batch channel address is
 `<device_id>-<channel_id>`. Pearl rolls a recording into a new file at 30 minutes or 500 MB by default, so one
 take can be several files; a channel controlled by Edge must record MP4 with a 500 MB maximum file size.
+The device acts on ALL recorders when a bulk start or stop has no `ids`, so `PearlClient.start_all` and
+`stop_all` need `ids` or an explicit `all_recorders=True`.
 
 ## Pipeline (CLI)
 `pull <recorder_id>` puts new files in `recordings/<host>/<recorder_id>/` with an `index.jsonl`. `package --camera
@@ -36,7 +38,9 @@ ordered by the device's raw `created` text, then file id; never parse file names
 `preflight <json> --channel <device_id>-<channel_id>` checks channels from saved Edge read-tool output (devices,
 storage, channel settings). Python cannot call MCP tools, so `/preflight` has a Claude session gather the JSON
 into the scratchpad (never the repo), run the command, and delete the file. It is read only; a check the kb does
-not settle is `UNVERIFIED`, not a failure.
+not settle is `UNVERIFIED`, not a failure. `--session <id>` appends the result to `sessions/<id>.jsonl`
+(gitignored, append-only, refuses a credentialed URL; `machine_ts` is this computer's clock and means nothing
+about any device).
 
 ## Gotchas
 - `ffmpeg` and `ffprobe` must be installed. Tests that need them skip without them; CI installs them.
@@ -50,7 +54,8 @@ not settle is `UNVERIFIED`, not a failure.
 - `torchcodec` (LeRobot's default decoder) supports FFmpeg 4 to 8. With FFmpeg 9 installed LeRobot falls back to
   `pyav`, and `StreamingLeRobotDataset` (torchcodec only in 0.6.1) cannot run. Tests and the notebook use `pyav`.
 - Run the gate with `&&` so a failure stops the commit: ruff check and format, pytest, `bash tests/hook-test.sh`,
-  `uvx pre-commit run --all-files`. A PR's Evidence section comes from the final commit.
+  `uvx pre-commit run --all-files`. A PR's Evidence section comes from the final commit. Read pre-commit's own
+  exit code: a trailing `grep -c failed` exits 1 when it counts zero, which looks like a failed gate and isn't.
 - The hooks need `jq`. Without it `check-secrets.sh` denies every file write and the redactor withholds output.
 - A test that needs a fake secret builds it from pieces (see `tests/hook-test.sh`), or `check-secrets.sh` denies
   the write. `tests/redaction-cases.json` is allowlisted in `.gitleaks.toml` and stays byte-identical with the Edge
@@ -59,10 +64,12 @@ not settle is `UNVERIFIED`, not a failure.
   Banners and the architecture diagram are generated: `python3 scripts/build_readme_art.py`.
 - Shared prose (README, anything that leaves the repo) uses US spelling and passes the Epiphan Brand
   `check_my_copy`. Product facts still come from the kb.
-- `main` has no branch protection on this plan. Branch and PR; merging, force-pushing or rewriting history needs
-  Tim's OK in that session. History was scrubbed of internal content on 2026-10-14; don't reintroduce it.
+- `main` has no branch protection on this plan. Branch and PR; merging, deleting a remote branch, force-pushing or
+  rewriting history needs Tim's OK in that session (the permission classifier may still block a merge or a remote
+  branch delete; Tim runs it with `!` in the prompt). History was scrubbed of internal content on 2026-10-14;
+  don't reintroduce it.
 
 ## Workflow
 `/begin` loads context, `/status` checks state, `/build` for features, `/ship` to commit and push, `/end` to
-close the day (observers, secrets sweep, context sync), `/preflight` to check channels before a take (read only). Tasks live in `.claude/TASK.md`, the queue in
-`.claude/BACKLOG.md`, the design in `.claude/PLAN.md`.
+close the day (observers, secrets sweep, context sync), `/preflight` to check channels before a take (read
+only). Tasks live in `.claude/TASK.md`, the queue in `.claude/BACKLOG.md`, the design in `.claude/PLAN.md`.
