@@ -313,7 +313,7 @@ async def test_requests_carry_a_basic_auth_header() -> None:
 
 
 @pytest.mark.parametrize("action", ["start_all", "stop_all"])
-async def test_bulk_control_without_ids_sends_no_ids_filter(action: str) -> None:
+async def test_bulk_control_all_recorders_sends_no_ids_filter(action: str) -> None:
     seen: list[tuple[str, bool]] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -321,8 +321,21 @@ async def test_bulk_control_without_ids_sends_no_ids_filter(action: str) -> None
         return httpx.Response(200, json={"status": "ok"})
 
     async with PearlClient(_settings(), transport=httpx.MockTransport(handler)) as client:
-        await getattr(client, action)()
+        await getattr(client, action)(all_recorders=True)
     assert seen == [(f"/api/v2.0/recorders/control/{action.removesuffix('_all')}", False)]
+
+
+@pytest.mark.parametrize("action", ["start_all", "stop_all"])
+@pytest.mark.parametrize(
+    "kwargs", [{}, {"ids": []}, {"ids": ["1"], "all_recorders": True}], ids=["neither", "empty", "both"]
+)
+async def test_bulk_control_must_name_recorders_or_ask_for_all(action: str, kwargs: dict) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise AssertionError("no request may reach the device")
+
+    async with PearlClient(_settings(), transport=httpx.MockTransport(handler)) as client:
+        with pytest.raises(ValueError, match="all_recorders"):
+            await getattr(client, action)(**kwargs)
 
 
 async def test_recorder_status_without_ids_sends_no_ids_filter() -> None:

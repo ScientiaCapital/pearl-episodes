@@ -105,7 +105,8 @@ Pearl Nano):
 
 Two kb details the code relies on. Start and stop are asynchronous: `{"status": "ok"}` "confirms the command was
 processed, not that recording has begun", so poll status. Without `ids`, `POST /recorders/control/start` starts
-all recorders on the device. On Pearl Nano the kb says there is one channel and no multitrack recorders.
+all recorders on the device, so `PearlClient.start_all` and `stop_all` need `ids` or an explicit
+`all_recorders=True` and refuse an empty call. On Pearl Nano the kb says there is one channel and no multitrack recorders.
 `/system/ident` returns name, location and description only, so the device serial number comes from Edge.
 
 Used here: `GET /recorders`, `GET /recorders/status` (optional `ids`; items carry `id`, `name`, `status`) and

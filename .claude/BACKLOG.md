@@ -16,7 +16,6 @@ Effort: S under half a day, M about a day, L several days. Impact is for the Phy
 
 ## From the observers (2026-10-16)
 - Preflight reads raw Edge tool results from files instead of a hand-built JSON (effort S, impact M).
-- `start_all` requires `ids`, or an explicit all-recorders flag (effort S, impact M).
 - Preflight against the Pearl itself with `GET /system/storages`, so it also runs without Edge (effort S, impact L).
 - Move the free-space floor into `Settings` when the session script needs it (effort S, impact L).
 - Fill `--model` and `--firmware` in `package` from `device_info()` (effort S, impact L).
