@@ -60,6 +60,7 @@ uvx pre-commit run --all-files         # plus gitleaks, shellcheck, actionlint, 
 | `src/pearl_episodes/episodes/packager.py` | Packages a take by remux; writes `manifest.json` and `hashes.txt` |
 | `src/pearl_episodes/media/ffmpeg.py` | ffprobe and lossless concat wrappers |
 | `src/pearl_episodes/operate/preflight.py` | Read-only preflight over Edge tool output (`/preflight`) |
+| `src/pearl_episodes/operate/session_log.py` | Append-only session log (`sessions/<id>.jsonl`, gitignored) |
 | `src/pearl_episodes/export/lerobot_v3.py` | LeRobot v3.0 export |
 | `src/pearl_episodes/config.py` | `Settings` from `.env` (`PEARL_*`) |
 | `src/pearl_episodes/cli.py` | The CLI |

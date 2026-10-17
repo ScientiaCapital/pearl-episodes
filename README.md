@@ -38,7 +38,7 @@ recording layer beside that rig earns its place, and makes its output load in th
 
 | Layer | What happens | State |
 |---|---|---|
-| **Operate** | Claude Code drives Epiphan Edge over the Model Context Protocol (MCP): check storage and status, start and stop recording across channels, with an approval prompt before every change | Guarded and tested. `/preflight` (read only) is built; start and stop through a session script is not |
+| **Operate** | Claude Code drives Epiphan Edge over the Model Context Protocol (MCP): check storage and status, start and stop recording across channels, with an approval prompt before every change | Guarded and tested. `/preflight` (read only) and an append-only session log are built; start and stop through a session script is not |
 | **Pull** | List a recorder's files over the Pearl REST API and download them | `list`, `recorders` and `pull` work. Pull skips files already pulled and never leaves a partial file |
 | **Package** | One episode per take: original files untouched, one joined video per camera made by remux, `manifest.json` with what the product doesn't record (task, operator, scene, clock source), `hashes.txt` | Built. A take is an explicit list of file ids |
 | **Export** | LeRobot v3.0 layout and RLDS, keeping Pearl's H.264 as-is (no re-encode) | LeRobot v3.0 built and opens with LeRobot's own loader. RLDS is next |
@@ -163,6 +163,7 @@ the demo for a lab.
 | `src/pearl_episodes/export/lerobot_v3.py` | LeRobot v3.0 export |
 | `src/pearl_episodes/config.py` | Settings from `.env` (`PEARL_*`); the password is a `SecretStr` |
 | `src/pearl_episodes/operate/preflight.py` | Read-only preflight over Epiphan Edge tool output: online, storage, recorder state, signal, file type and size limit per channel |
+| `src/pearl_episodes/operate/session_log.py` | Append-only session log: one JSON line per action in `sessions/<id>.jsonl` (gitignored), with an optional keep or discard verdict per take |
 | `src/pearl_episodes/cli.py` | `doctor`, `recorders`, `list`, `pull`, `package`, `export`, `preflight` |
 | `notebooks/pearl_beside_droid.ipynb` | A Pearl episode beside a DROID episode (outputs cleared) |
 | `scripts/make_synthetic_take.py`, `scripts/codec_compare.sh` | A test-pattern take for demos; the bench codec test commands |
@@ -219,7 +220,8 @@ Project commands: `/begin`, `/status`, `/build`, `/ship`, `/end`, and `/prefligh
 `/preflight <device_id>-<channel_id> ...` checks channels before a take. A Claude session reads the Edge devices,
 storage, and channel settings with read tools only, saves them as JSON outside the repo, and runs
 `pearl-episodes preflight` on the file. Each channel is OK or not ready. A check the documentation doesn't settle
-shows as `UNVERIFIED` and doesn't fail the run. The storage floor is our own policy (10 GB by default).
+shows as `UNVERIFIED` and doesn't fail the run. The storage floor is our own policy (10 GB by default). With `--session <id>`, the result is also appended to
+`sessions/<id>.jsonl`, a log that stays on this machine and refuses any entry that holds a credentialed URL.
 
 ## Data handling
 
@@ -244,11 +246,11 @@ contributors and AI assistants are in [CONTRIBUTING.md](CONTRIBUTING.md) and [AG
 ## Status
 
 - **Works:** the REST client, checked against Epiphan's OpenAPI spec and re-checked on 2026-10-16 with a kb page
-  cited beside each call; `doctor`, `recorders`, `list`, and `pull`; the read-only `preflight`; packaging by remux
+  cited beside each call; `doctor`, `recorders`, `list`, and `pull`; the read-only `preflight` with its session log; packaging by remux
   with manifest v2; the LeRobot v3.0 export, which opens in LeRobot's own loader; the DROID side-by-side
   notebook; the Claude Code safety hooks. All of it is tested with generated clips and mocked transports.
 - **Next:** a bench session on the Pearl Mini with a first real take, real fixtures, a codec test, and USB
-  cameras. Then the rest of the operator session (start and stop, the session log, hand-off to `pull`) and the
+  cameras. Then the rest of the operator session (start and stop, hand-off to `pull`) and the
   RLDS export.
 - **Not yet run:** against a real Pearl take, against a lab, or against more than one device.
 - **Open product questions** are listed in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md); the code doesn't guess

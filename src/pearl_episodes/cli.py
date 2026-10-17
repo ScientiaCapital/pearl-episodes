@@ -28,6 +28,7 @@ from pearl_episodes.operate.preflight import (
     evaluate_preflight,
     format_report,
 )
+from pearl_episodes.operate.session_log import SessionLog, preflight_entry
 from pearl_episodes.pearl.client import PearlApiError, PearlClient
 
 REQUIRED_MODULES = ("httpx", "pydantic", "pydantic_settings")
@@ -154,6 +155,13 @@ def _preflight(args: argparse.Namespace) -> int:
         return 1
     report = evaluate_preflight(data, args.channel, args.min_free_bytes)
     print(format_report(report))
+    if args.session:
+        try:
+            log = SessionLog(Path(args.sessions_dir), args.session)
+            asyncio.run(log.append(preflight_entry(report, args.channel)))
+        except (OSError, ValueError) as exc:
+            print(f"preflight: session log: {exc}", file=sys.stderr)
+            return 1
     return 0 if report.ok else 1
 
 
@@ -184,6 +192,12 @@ def main(argv: list[str] | None = None, transport: Transport = None) -> int:
         "--min-free-bytes", type=int, default=DEFAULT_MIN_FREE_BYTES,
         help="refuse below this much free storage (default: %(default)s)",
     )  # fmt: skip
+    p_pre.add_argument("--session", default=None, help="append the result to this session's log")
+    p_pre.add_argument(
+        "--sessions-dir",
+        default="sessions",
+        help="folder for session logs (gitignored; default: %(default)s)",
+    )
     p_pkg = sub.add_parser(
         "package", help="package pulled files of one take as an episode (remux, no re-encode)"
     )

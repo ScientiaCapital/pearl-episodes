@@ -20,6 +20,14 @@ by Edge must record MP4 with a 500 MB maximum file size, so a larger limit or an
 `recorder.file_format` values such as `MP4 Fragmented`, and the kb does not say whether Edge accepts that, so it
 is shown as `UNVERIFIED` and does not fail the run. Device and channel warnings are copied verbatim.
 
+**Session log.** `src/pearl_episodes/operate/session_log.py` appends one JSON line per action to
+`sessions/<session_id>.jsonl` (gitignored, because it names devices and operators). Each line has `machine_ts`
+(this computer's clock, UTC, with no meaning for any device's clock), `tool`, `args`, `result_summary`,
+`warnings` (verbatim), an optional take `verdict` (`keep` or `discard`) and a `note`. Lines are only ever
+appended. A line that holds a credentialed URL is refused, and a session id must be a plain file name.
+`pearl-episodes preflight --session <id>` writes the first entry type; start, stop and the take verdict come
+with the session script. The manifest's `session_id` points at this file.
+
 ## Episode manifest (provenance, in software)
 
 `src/pearl_episodes/episodes/manifest.py`, `schema_version` 2. Models are frozen and reject unknown fields.
