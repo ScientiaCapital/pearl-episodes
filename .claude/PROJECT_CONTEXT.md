@@ -1,13 +1,16 @@
 # pearl-episodes
 
-**Branch**: main | **Updated**: 2026-10-14
+**Branch**: main | **Updated**: 2026-10-16
 
 ## Status
 Sprint 1 built (2026-10-15, PRs #16 to #24): the client checks the response envelope, downloads are atomic and
 size-verified, recorder status and `recorders` exist, manifest v2, `pull`, `package` (remux, no re-encode), the
 LeRobot v3.0 export (opens with lerobot 0.6.1's own loader), and the notebook beside a DROID episode. Nothing has
 run against a real device yet: no `.env`, so all fixtures are hand-written or generated. RLDS export and the
-operator session script are not built. Safety baseline in place (2026-10-14): the Edge Claude Kit's write guard and
+start/stop part of the operator session script are not built. Added 2026-10-16 (PRs #29, #30): the read-only
+`/preflight` (`pearl-episodes preflight`), and a re-check of the REST surface against the published spec and the kb,
+with the kb page cited beside each client call (bookmarks take a required `text` query parameter; no REST call
+returns the Date and Time protocol). Safety baseline in place (2026-10-14): the Edge Claude Kit's write guard and
 redaction hooks, a working secrets hook, gitleaks, pinned CI. Private repo, Epiphan-owned.
 
 ## Why this exists

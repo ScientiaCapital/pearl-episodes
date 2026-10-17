@@ -119,7 +119,7 @@ The log goes to `sessions/<session_id>.jsonl` (add `sessions/` to `.gitignore`: 
 There is one line per action: `ts` (machine clock, labelled as such), `tool`, `args` (with secrets masked by the
 existing hook), `result_summary` and `warnings`.
 
-1. **Preflight, read only:** `get_devices_in_my_team` → `get_device_info`; `get_storage_status_for_devices`
+1. **Preflight, read only (built 2026-10-16, `/preflight`):** `get_devices_in_my_team` → `get_device_info`; `get_storage_status_for_devices`
    (refuse to start below a free-space floor set in Settings, because a full drive overwrites the oldest
    files); `get_system_status_for_devices`; `get_recorder_status_for_devices`.
 2. **Ask:** print the device, the channels (`<device_id>-<channel_id>`) and the expected effect, then wait for Tim's
