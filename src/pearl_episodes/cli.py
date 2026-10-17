@@ -1,4 +1,4 @@
-"""pearl-episodes: doctor | recorders | list | pull | package | export
+"""pearl-episodes: doctor | recorders | list | pull | package | export | preflight
 
 Every expected failure (settings missing, device unreachable, HTTP error, bad envelope) prints one line to
 stderr and exits 1. Anything else is a bug and raises.
@@ -12,6 +12,7 @@ import sys
 from collections.abc import Awaitable, Callable
 from pathlib import Path
 
+import anyio
 import httpx
 from pydantic import ValidationError
 
@@ -21,6 +22,12 @@ from pearl_episodes.episodes.packager import CameraInput, TakeLabels, package_ta
 from pearl_episodes.episodes.pull import pull
 from pearl_episodes.export.lerobot_v3 import ExportError, export_lerobot_v3
 from pearl_episodes.media.ffmpeg import RemuxError
+from pearl_episodes.operate.preflight import (
+    DEFAULT_MIN_FREE_BYTES,
+    PreflightInput,
+    evaluate_preflight,
+    format_report,
+)
 from pearl_episodes.pearl.client import PearlApiError, PearlClient
 
 REQUIRED_MODULES = ("httpx", "pydantic", "pydantic_settings")
@@ -137,6 +144,19 @@ def _export(args: argparse.Namespace) -> int:
     return 0
 
 
+def _preflight(args: argparse.Namespace) -> int:
+    """Check channels against Edge tool output saved as JSON. Reads one file; no device, no network."""
+    try:
+        text = asyncio.run(anyio.Path(args.input_json).read_text())
+        data = PreflightInput.model_validate_json(text)
+    except (OSError, ValidationError) as exc:
+        print(f"preflight: {exc}", file=sys.stderr)
+        return 1
+    report = evaluate_preflight(data, args.channel, args.min_free_bytes)
+    print(format_report(report))
+    return 0 if report.ok else 1
+
+
 def main(argv: list[str] | None = None, transport: Transport = None) -> int:
     parser = argparse.ArgumentParser(prog="pearl-episodes")
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -152,6 +172,18 @@ def main(argv: list[str] | None = None, transport: Transport = None) -> int:
         "export", help="export a packaged episode as a LeRobot v3.0 dataset (no re-encode)"
     )
     p_exp.add_argument("episode_dir")
+    p_pre = sub.add_parser(
+        "preflight", help="check channels before a take, from saved Edge read-tool output (no device)"
+    )
+    p_pre.add_argument("input_json", help="JSON with devices, storage and channel_settings")
+    p_pre.add_argument(
+        "--channel", action="append", required=True, metavar="DEVICE_ID-CHANNEL_ID",
+        help="channel to check, as Edge batch tools address it; repeat per channel",
+    )  # fmt: skip
+    p_pre.add_argument(
+        "--min-free-bytes", type=int, default=DEFAULT_MIN_FREE_BYTES,
+        help="refuse below this much free storage (default: %(default)s)",
+    )  # fmt: skip
     p_pkg = sub.add_parser(
         "package", help="package pulled files of one take as an episode (remux, no re-encode)"
     )
@@ -183,6 +215,8 @@ def main(argv: list[str] | None = None, transport: Transport = None) -> int:
         return _run(lambda client, settings: _pull(client, settings, args.recorder_id), transport)
     if args.cmd == "export":
         return _export(args)
+    if args.cmd == "preflight":
+        return _preflight(args)
     return _package(args)
 
 

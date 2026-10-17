@@ -10,6 +10,16 @@
 
 `.claude/PLAN.md` has the full design for one episode, the segment-stitching rule and the operator session log.
 
+**Preflight (read only).** Python cannot call MCP tools, so the work is split. `/preflight` has a Claude session
+read `get_devices_in_my_team`, `get_storage_status_for_devices` and `get_channel_settings`, save the results as
+JSON outside the repo, and run `pearl-episodes preflight <json> --channel <device_id>-<channel_id>`
+(`src/pearl_episodes/operate/preflight.py`, pure functions, no network). Per channel it checks: device online,
+storage `ready` with free space above a floor (our policy, default 10 GB; a full drive overwrites the oldest
+files), recorder stopped, no no-signal warning, file type, and file size limit. The kb says a channel controlled
+by Edge must record MP4 with a 500 MB maximum file size, so a larger limit or another type fails. A Pearl reports
+`recorder.file_format` values such as `MP4 Fragmented`, and the kb does not say whether Edge accepts that, so it
+is shown as `UNVERIFIED` and does not fail the run. Device and channel warnings are copied verbatim.
+
 ## Episode manifest (provenance, in software)
 
 `src/pearl_episodes/episodes/manifest.py`, `schema_version` 2. Models are frozen and reject unknown fields.
