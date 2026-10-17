@@ -4,9 +4,10 @@ Sprint 1 lives in GitHub issues #2 to #14 (milestone "Sprint 1", from 2026-10-15
 Effort: S under half a day, M about a day, L several days. Impact is for the Physical AI lab proof of concept.
 
 ## Sprint 2 candidates (need a real take first)
-1. Operator session script over Edge MCP with a session log (effort M, impact H). The read-only preflight
-   (`/preflight`) is built. Left: start and stop through `batch_recording`, polling status, the log, and the
-   hand-off to `pull` and `package`. Waits on a confirmed bench device.
+1. Operator session script over Edge MCP (effort M, impact H). The read-only preflight (`/preflight`) and the
+   append-only session log (`preflight --session`) are built. Left: start and stop through `batch_recording`,
+   polling status, the keep or discard verdict per take, and the hand-off to `pull` and `package`. Waits on a
+   confirmed bench device.
 2. Per-take labels captured from the operator at record start (effort S, impact M): a CLI prompt, later a tiny web
    form. Test whether `POST /channels/{cid}/bookmarks` (required `text` parameter) can carry the label; how a
    bookmark shows up in the file is undocumented.

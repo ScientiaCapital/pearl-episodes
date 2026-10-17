@@ -115,7 +115,9 @@ recording.
 
 ## 5. An operator session over Epiphan Edge MCP
 
-The log goes to `sessions/<session_id>.jsonl` (add `sessions/` to `.gitignore`: it names devices and operators).
+The log goes to `sessions/<session_id>.jsonl` (`sessions/` is gitignored: it names devices and operators). The
+writer is built (`operate/session_log.py`, 2026-10-16) and `preflight --session` uses it; the script that adds
+start, stop and the take verdict is not.
 There is one line per action: `ts` (machine clock, labelled as such), `tool`, `args` (with secrets masked by the
 existing hook), `result_summary` and `warnings`.
 
