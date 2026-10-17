@@ -11,7 +11,14 @@ Built (code, no device): #2, #3, #4, #5, #6, #7, #8, #9, #13 on 2026-10-15; and 
 `/preflight` (#29), the REST re-check with a kb page beside each client call (#30), and the README, CLAUDE.md and
 context update (#31). Everything runs on generated test patterns and mocked transports.
 
-Left for Tim, needs the Mini on the bench and visible in Edge (until then, no writes; `/preflight` and fixtures only):
+2026-10-17: An Edge sandbox team was set up (Pearl-2, Pearl Mini, EC20); the claude.ai Epiphan MCP connector is
+signed in to it. Read-only checks: Pearl-2 online, storage ready, channel 1 MP4 with the 500 MB limit, one live
+1080p input; Pearl Mini online with no storage fitted (`nodev`); EC20 offline. Blocker for `doctor` and `pull`: this
+Mac cannot reach the sandbox devices (no answer to ping, 80 or 443). Asked of the sandbox owner: VPN or another network path,
+the Pearl-2 admin login, storage in the Mini, the EC20 back online. Until then only Edge-side work is possible
+(`/preflight`, an Edge start and stop on the Pearl-2 after Tim approves it).
+
+Left for Tim, needs a reachable device (until then, no `pull`; `/preflight` and Edge-only takes):
 1. #10 first session: `cp .env.example .env`, check the device serves HTTPS (the client assumes it), `doctor`,
    `recorders`, `list`, then `/preflight` on the channels, one short take through `batch_recording` (asks first),
    `pull`, and capture redacted fixtures.

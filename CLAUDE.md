@@ -19,6 +19,8 @@ market, the proof of concept and the measures this code has to produce. The file
   not cover it, say so.
 - Development hardware is Tim's own Pearl Mini (the PoC station), EC20 and (soon) Nano (`docs/HARDWARE.md`).
   Use those first.
+- Bench devices (Pearl-2, Pearl Mini, EC20) are in a separate Edge sandbox team since 2026-10-17. The OAuth
+  sign-in picks the team, so run `get_devices_in_my_team` first and confirm it is the sandbox before any write.
 - The Edge team visible in some sessions is Epiphan's shared demo fleet. Treat it as shared: record on it only
   when Tim says so in the session, never during business hours without asking, and never change presets, events
   or firmware. Don't write its device, room or group names into this repo.

@@ -45,6 +45,12 @@ The REST API works directly against a device with its admin credentials. Putting
 team adds the MCP (reads free, writes need Premium) and the dashboard. Keep them in a team separate from
 Epiphan's demo fleet, or leave them out of Edge for the first sessions.
 
+Since 2026-10-17 a separate Edge sandbox team holds a Pearl-2, a Pearl Mini and an EC20 for this work. The MCP
+sees one team at a time, chosen during the browser OAuth sign-in (kb `cloud-edge/connect-an-ai-assistant-to-epiphan-cloud-using-mcp`);
+reconnecting without a new sign-in keeps the old team. Check `get_devices_in_my_team` before any write. Edge
+reaches these devices from anywhere, but `doctor` and `pull` need a network path to the device itself (same LAN or
+VPN): on 2026-10-17 the sandbox devices did not answer from Tim's network.
+
 ## Audio
 
 Pearl-2, Pearl Mini and Pearl Nexus take Dante audio with firmware 4.24.6+ and the paid Dante audio feature add-on

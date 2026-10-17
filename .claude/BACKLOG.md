@@ -22,6 +22,13 @@ Effort: S under half a day, M about a day, L several days. Impact is for the Phy
 - Fill `--model` and `--firmware` in `package` from `device_info()` (effort S, impact L).
 - Time the export frame sampler on a real 30-minute file (effort S, impact M).
 
+## Edge sandbox (2026-10-17)
+- Network path from Tim's Mac to the sandbox devices, VPN or other (owner: sandbox owner; blocks `doctor`, `pull` and #10).
+  The sandbox uses a common home-router address range, so a VPN route may clash with Tim's home network.
+- Storage in the sandbox Pearl Mini, and the EC20 back online (owner: sandbox owner).
+- Edge-only test take on the Pearl-2 while waiting: start and stop one channel, confirm through recorder status
+  (effort S, impact M; asks first).
+
 ## Open decisions (Tim)
 - Decided 2026-10-16 (Tim): the repository stays in the ScientiaCapital GitHub org. The copyright and
   confidential notice stay Epiphan Systems Inc. Not an open question.
