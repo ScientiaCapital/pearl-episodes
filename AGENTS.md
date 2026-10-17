@@ -7,7 +7,7 @@ Instructions for AI coding assistants (Claude Code, Codex, Cursor and others) wo
 
 pearl-episodes records robot-learning demonstrations on Epiphan Pearl, runs the capture stations through
 Epiphan Edge, and packages each take as an episode (LeRobot, RLDS). Python 3.12, uv, ruff, pytest with
-`asyncio_mode = auto`. Package in `src/pearl_episodes/`. CLI: `pearl-episodes doctor | recorders | list | pull | package | export`
+`asyncio_mode = auto`. Package in `src/pearl_episodes/`. CLI: `pearl-episodes doctor | recorders | list | pull | package | export | preflight`
 (RLDS export is not built yet). Private, Epiphan-owned.
 
 ## Commands
@@ -59,6 +59,7 @@ uvx pre-commit run --all-files         # plus gitleaks, shellcheck, actionlint, 
 | `src/pearl_episodes/episodes/pull.py` | `pull`: idempotent on file id, atomic |
 | `src/pearl_episodes/episodes/packager.py` | Packages a take by remux; writes `manifest.json` and `hashes.txt` |
 | `src/pearl_episodes/media/ffmpeg.py` | ffprobe and lossless concat wrappers |
+| `src/pearl_episodes/operate/preflight.py` | Read-only preflight over Edge tool output (`/preflight`) |
 | `src/pearl_episodes/export/lerobot_v3.py` | LeRobot v3.0 export |
 | `src/pearl_episodes/config.py` | `Settings` from `.env` (`PEARL_*`) |
 | `src/pearl_episodes/cli.py` | The CLI |
