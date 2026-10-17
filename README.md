@@ -22,7 +22,7 @@
 
 Record robot-learning demonstrations on **Epiphan Pearl**, run the capture stations from one screen through
 **Epiphan Edge**, and package every take as an episode in the formats robotics labs already train on:
-**LeRobot**, and **RLDS** as used by Open X-Embodiment.
+**LeRobot**, and **RLDS** (Reinforcement Learning Datasets) as used by Open X-Embodiment.
 
 Robot-learning labs record demonstrations at fixed stations: a robot arm, one to four cameras, and a person
 driving the arm. The common rig, [DROID](https://droid-dataset.github.io/), was "replicated 18 times" across 13
@@ -30,7 +30,7 @@ institutions, many of them campuses that already run Pearl. Their recording stac
 workstation running open-source software. This project tests whether an independent, remotely operated
 recording layer beside that rig earns its place, and makes its output load in the lab's own tools.
 
-> **Status: early.** The pipeline runs end to end on test patterns. `pull`, `package` and the LeRobot v3.0
+> **Status: early.** The pipeline runs end to end on test patterns. `pull`, `package`, and the LeRobot v3.0
 > export are built and tested, and a notebook opens an episode beside DROID. Nothing has run against a real
 > Pearl take, a lab or more than one device yet. See [Status](#status).
 
@@ -38,7 +38,7 @@ recording layer beside that rig earns its place, and makes its output load in th
 
 | Layer | What happens | State |
 |---|---|---|
-| **Operate** | Claude Code drives Epiphan Edge over MCP: check storage and status, start and stop recording across channels, with an approval prompt before every change | Guarded and tested; session script not built |
+| **Operate** | Claude Code drives Epiphan Edge over the Model Context Protocol (MCP): check storage and status, start and stop recording across channels, with an approval prompt before every change | Guarded and tested. `/preflight` (read only) is built; start and stop through a session script is not |
 | **Pull** | List a recorder's files over the Pearl REST API and download them | `list`, `recorders` and `pull` work. Pull skips files already pulled and never leaves a partial file |
 | **Package** | One episode per take: original files untouched, one joined video per camera made by remux, `manifest.json` with what the product doesn't record (task, operator, scene, clock source), `hashes.txt` | Built. A take is an explicit list of file ids |
 | **Export** | LeRobot v3.0 layout and RLDS, keeping Pearl's H.264 as-is (no re-encode) | LeRobot v3.0 built and opens with LeRobot's own loader. RLDS is next |
@@ -46,7 +46,7 @@ recording layer beside that rig earns its place, and makes its output load in th
 
 ## What you get: one take, one episode
 
-Two EC20s record a take on the Pearl Mini PoC station. `pearl-episodes` packages it into one folder:
+Two EC20s record a take on the Pearl Mini proof-of-concept (PoC) station. `pearl-episodes` packages it into one folder:
 
 ```text
 episodes/2026-10-14_pick-cup_0007/
@@ -139,7 +139,7 @@ the demo for a lab.
 - **No depth.** LeRobot keeps depth as 12-bit lossless, which an 8-bit 4:2:0 stream can't carry. Depth and robot
   state stay on the lab's own stack.
 - **No claim about timing or alignment** between cameras or devices. The manifest records each device's
-  `clock_source` (NTP, PTP or unknown) and nothing more.
+  `clock_source` (Network Time Protocol, Precision Time Protocol, manual, or unknown) and nothing more.
 - **Independent views.** The PoC station is a Pearl Mini with two EC20 cameras on HDMI, on the same cart as the
   lab's rig ([docs/HARDWARE.md](docs/HARDWARE.md)). It records the workspace beside the lab's cameras and does not
   replace or copy their feeds.
@@ -162,7 +162,8 @@ the demo for a lab.
 | `src/pearl_episodes/media/ffmpeg.py` | ffprobe and lossless remux wrappers |
 | `src/pearl_episodes/export/lerobot_v3.py` | LeRobot v3.0 export |
 | `src/pearl_episodes/config.py` | Settings from `.env` (`PEARL_*`); the password is a `SecretStr` |
-| `src/pearl_episodes/cli.py` | `doctor`, `recorders`, `list`, `pull`, `package`, `export` |
+| `src/pearl_episodes/operate/preflight.py` | Read-only preflight over Epiphan Edge tool output: online, storage, recorder state, signal, file type and size limit per channel |
+| `src/pearl_episodes/cli.py` | `doctor`, `recorders`, `list`, `pull`, `package`, `export`, `preflight` |
 | `notebooks/pearl_beside_droid.ipynb` | A Pearl episode beside a DROID episode (outputs cleared) |
 | `scripts/make_synthetic_take.py`, `scripts/codec_compare.sh` | A test-pattern take for demos; the bench codec test commands |
 | `.claude/settings.json`, `.claude/hooks/` | Edge write guard, redaction and secrets hooks for Claude Code |
@@ -201,9 +202,9 @@ The `epiphan` MCP server in `.mcp.json` connects Claude Code to Epiphan Edge. In
 
 - The 20 Edge read tools run without a prompt. **Every write asks first** (recording, streaming, events,
   presets, reboot, firmware), under any connector name, and bypass mode is off. Unknown Edge tools ask too.
-- Stream keys, passwords and credentialed URLs are **masked** before the model sees a tool result. Output that
+- Stream keys, passwords, and credentialed URLs are **masked** before the model sees a tool result. Output that
   can't be checked is withheld.
-- File writes that contain a key, token, private key or a filled-in `PEARL_PASSWORD` are **denied**.
+- File writes that contain a key, token, private key, or a filled-in `PEARL_PASSWORD` are **denied**.
 - The DEV and STAGING connectors and the CRM connector are **denied** here.
 - `EPIPHAN_READ_ONLY=1 claude` blocks every Edge write outright.
 
@@ -213,11 +214,16 @@ shared byte-for-byte with [Fleetwatch](https://github.com/ScientiaCapital/fleetw
 read-only scope, so the token can do whatever its account can: use a least-access Edge account. The trust
 model and known limits are in [SECURITY.md](SECURITY.md).
 
-Project commands: `/begin`, `/status`, `/build`, `/ship`, `/end` (`.claude/commands/`).
+Project commands: `/begin`, `/status`, `/build`, `/ship`, `/end`, and `/preflight` (`.claude/commands/`).
+
+`/preflight <device_id>-<channel_id> ...` checks channels before a take. A Claude session reads the Edge devices,
+storage, and channel settings with read tools only, saves them as JSON outside the repo, and runs
+`pearl-episodes preflight` on the file. Each channel is OK or not ready. A check the documentation doesn't settle
+shows as `UNVERIFIED` and doesn't fail the run. The storage floor is our own policy (10 GB by default).
 
 ## Data handling
 
-Recordings, episodes and session logs are gitignored (root-anchored), as are media and dataset files anywhere
+Recordings, episodes, and session logs are gitignored (root-anchored), as are media and dataset files anywhere
 in the tree. They may show people, they belong to the lab that produced them, and they stay on the machine they
 were pulled to. Internal documents are linked from [docs/context/README.md](docs/context/README.md), never
 committed.
@@ -237,12 +243,13 @@ contributors and AI assistants are in [CONTRIBUTING.md](CONTRIBUTING.md) and [AG
 
 ## Status
 
-- **Works:** the REST client, checked against Epiphan's OpenAPI spec and the kb REST pages; `doctor`,
-  `recorders`, `list` and `pull`; packaging by remux with manifest v2; the LeRobot v3.0 export, which opens in
-  LeRobot's own loader; the DROID side-by-side notebook; the Claude Code safety hooks. All of it is tested with
-  generated clips and mocked transports.
-- **Next:** a bench session on the Pearl Mini with a first real take, real fixtures, a codec test and USB
-  cameras. Then the RLDS export and the operator session script.
+- **Works:** the REST client, checked against Epiphan's OpenAPI spec and re-checked on 2026-10-16 with a kb page
+  cited beside each call; `doctor`, `recorders`, `list`, and `pull`; the read-only `preflight`; packaging by remux
+  with manifest v2; the LeRobot v3.0 export, which opens in LeRobot's own loader; the DROID side-by-side
+  notebook; the Claude Code safety hooks. All of it is tested with generated clips and mocked transports.
+- **Next:** a bench session on the Pearl Mini with a first real take, real fixtures, a codec test, and USB
+  cameras. Then the rest of the operator session (start and stop, the session log, hand-off to `pull`) and the
+  RLDS export.
 - **Not yet run:** against a real Pearl take, against a lab, or against more than one device.
 - **Open product questions** are listed in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md); the code doesn't guess
   at them.

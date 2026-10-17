@@ -33,6 +33,10 @@ take can be several files; a channel controlled by Edge must record MP4 with a 5
 ...` builds `episodes/<id>/` (`source/`, `joined/`, `manifest.json`, `hashes.txt`) by remux, never a re-encode.
 `export <episode_dir>` adds `lerobot/` (v3.0). Existing episodes and exports are never overwritten. Segments are
 ordered by the device's raw `created` text, then file id; never parse file names or times.
+`preflight <json> --channel <device_id>-<channel_id>` checks channels from saved Edge read-tool output (devices,
+storage, channel settings). Python cannot call MCP tools, so `/preflight` has a Claude session gather the JSON
+into the scratchpad (never the repo), run the command, and delete the file. It is read only; a check the kb does
+not settle is `UNVERIFIED`, not a failure.
 
 ## Gotchas
 - `ffmpeg` and `ffprobe` must be installed. Tests that need them skip without them; CI installs them.
@@ -60,5 +64,5 @@ ordered by the device's raw `created` text, then file id; never parse file names
 
 ## Workflow
 `/begin` loads context, `/status` checks state, `/build` for features, `/ship` to commit and push, `/end` to
-close the day (observers, secrets sweep, context sync). Tasks live in `.claude/TASK.md`, the queue in
+close the day (observers, secrets sweep, context sync), `/preflight` to check channels before a take (read only). Tasks live in `.claude/TASK.md`, the queue in
 `.claude/BACKLOG.md`, the design in `.claude/PLAN.md`.
