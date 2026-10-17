@@ -249,16 +249,24 @@ class PearlClient:
                 raise IncompleteDownload(int(length), got)
         return got
 
-    async def start_all(self, ids: list[str] | None = None) -> None:
-        """Bulk start (kb: pearl-family/pearl-rest-api-start-and-stop-recording). Without `ids` it starts ALL
-        recorders on the device. Asynchronous: returns when the command is accepted, not when recorders are
-        running."""
-        await self._post("/recorders/control/start", params=_ids(ids))
+    async def start_all(self, ids: list[str] | None = None, *, all_recorders: bool = False) -> None:
+        """Bulk start (kb: pearl-family/pearl-rest-api-start-and-stop-recording). The device starts ALL
+        recorders when no `ids` are sent, so the caller names the recorders in `ids` or passes
+        `all_recorders=True` on purpose; neither or both raises `ValueError`. Asynchronous: returns when the
+        command is accepted, not when recorders are running."""
+        await self._post("/recorders/control/start", params=_bulk_ids(ids, all_recorders))
 
-    async def stop_all(self, ids: list[str] | None = None) -> None:
-        """Bulk stop; same `ids` and asynchrony as `start_all`."""
-        await self._post("/recorders/control/stop", params=_ids(ids))
+    async def stop_all(self, ids: list[str] | None = None, *, all_recorders: bool = False) -> None:
+        """Bulk stop; same `ids`, `all_recorders` and asynchrony as `start_all`."""
+        await self._post("/recorders/control/stop", params=_bulk_ids(ids, all_recorders))
 
 
 def _ids(ids: list[str] | None) -> dict[str, str] | None:
     return {"ids": ",".join(ids)} if ids else None
+
+
+def _bulk_ids(ids: list[str] | None, all_recorders: bool) -> dict[str, str] | None:
+    """The `ids` filter for a bulk start or stop. An empty list is not "all": it raises like no argument."""
+    if bool(ids) == all_recorders:
+        raise ValueError("name the recorders in `ids`, or pass all_recorders=True; not both, not neither")
+    return _ids(ids)

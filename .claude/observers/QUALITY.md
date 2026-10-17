@@ -11,9 +11,9 @@ BLOCKER.
 - [WARNING] — `.claude/commands/preflight.md` — a Claude session builds the scratch JSON by copying fields from
   the Edge tool results; one transcription slip gives a wrong OK or NOT READY. The live check copied by hand —
   have the command save each tool result verbatim and let the CLI read the raw responses (effort S, impact M)
-- [WARNING] — src/pearl_episodes/pearl/client.py `start_all` — without `ids` it starts every recorder on the
-  device (kb: pearl-rest-api-start-and-stop-recording); a session script could start more than it names — require
-  `ids`, or an explicit all-recorders flag (effort S, impact M)
+- [RESOLVED 2026-10-16] — src/pearl_episodes/pearl/client.py `start_all` — without `ids` it starts every
+  recorder on the device (kb: pearl-rest-api-start-and-stop-recording); `start_all` and `stop_all` now need `ids`
+  or `all_recorders=True` and refuse an empty call
 - [INFO] — src/pearl_episodes/operate/preflight.py — `recorder.file_format` and `recorder.size_limit` are the
   setting ids `get_channel_settings` returned on two devices; the kb pages name the rule (MP4, 500 MB) but not
   the ids. Observed, not documented — recheck after a firmware change
