@@ -1,8 +1,9 @@
 """Async client for one Pearl device's REST API.
 
 Verified against Epiphan's published OpenAPI spec (github.com/epiphan-video/pearl_api_swagger_ui,
-`api/v2.0/openapi.yml`, "Pearl device REST API" v2.0, checked 2026-10-14): base path `/api/v2.0`, HTTP Basic
-auth, every response wrapped as `{"status": "ok", "result": ...}`. Paths below are the spec's.
+`api/v2.0/openapi.yml`, "Pearl device REST API" v2.0, checked 2026-10-14 and again 2026-10-16): base path
+`/api/v2.0`, HTTP Basic auth, every response wrapped as `{"status": "ok", "result": ...}`. Paths below are the
+spec's.
 """
 
 from __future__ import annotations
@@ -163,19 +164,26 @@ class PearlClient:
         _check_envelope(path, response)
 
     async def list_recorders(self) -> list[Recorder]:
+        """`GET /recorders` (kb: pearl-family/pearl-rest-api-start-and-stop-recording). Each entry has `id`,
+        `name` and `multisource`; recorder IDs are auto-assigned, so list them first."""
         return [Recorder.model_validate(r) for r in await self._get_result("/recorders", list)]
 
     async def recorder_status(self, ids: list[str] | None = None) -> list[IdentifiedRecorderStatus]:
-        """`GET /recorders/status`, optionally filtered with `ids`. Start and stop are asynchronous, so this
-        is how a session learns whether a recorder actually runs."""
+        """`GET /recorders/status`, optionally filtered with `ids`
+        (kb: pearl-family/pearl-rest-api-check-recorder-status-and-download-recordings). Start and stop are
+        asynchronous, so this is how a session learns whether a recorder actually runs."""
         result = await self._get_result("/recorders/status", list, _ids(ids))
         return [IdentifiedRecorderStatus.model_validate(item) for item in result]
 
     async def recorder_status_one(self, recorder_id: str) -> RecorderStatus:
-        """`GET /recorders/{rid}/status`."""
+        """`GET /recorders/{rid}/status`
+        (kb: pearl-family/pearl-rest-api-check-recorder-status-and-download-recordings)."""
         return RecorderStatus.model_validate(await self._get_result(f"/recorders/{recorder_id}/status", dict))
 
     async def device_info(self) -> DeviceInfo:
+        """`GET /system/ident` (name, location, description) and `GET /system/firmware`
+        (kb: pearl-family/pearl-rest-api-check-firmware-version-and-device-identity). Neither returns a serial
+        number, which is why the manifest takes `device_serial` from Edge."""
         ident = await self._get_result("/system/ident", dict)
         fw = await self._get_result("/system/firmware", dict)
         return DeviceInfo(
@@ -187,7 +195,8 @@ class PearlClient:
         )
 
     async def list_recordings(self, recorder_id: str) -> list[RecordingFile]:
-        """All archive files for one recorder, paged with the spec's `from` and `limit` parameters."""
+        """All archive files for one recorder, paged with the spec's `from` and `limit` parameters
+        (kb: pearl-family/pearl-rest-api-check-recorder-status-and-download-recordings)."""
         path = f"/recorders/{recorder_id}/archive/files"
         files: list[RecordingFile] = []
         seen: set[str] = set()
@@ -202,7 +211,8 @@ class PearlClient:
                 return files
 
     async def download(self, recorder_id: str, file: RecordingFile, dest: Path) -> Path:
-        """Stream one recording to disk (`application/octet-stream`; a missing recorder or file is a 404).
+        """Stream one recording to disk (`application/octet-stream`; a missing recorder or file is a 404;
+        kb: pearl-family/pearl-rest-api-check-recorder-status-and-download-recordings).
 
         Refuses a file still `recording` or `uploading`. Writes to `<dest>.part`, compares the byte count with
         `Content-Length` and with the listing's `size`, and only then moves it into place, so a truncated
@@ -240,10 +250,13 @@ class PearlClient:
         return got
 
     async def start_all(self, ids: list[str] | None = None) -> None:
-        """Bulk start. Asynchronous: returns when the command is accepted, not when recorders are running."""
+        """Bulk start (kb: pearl-family/pearl-rest-api-start-and-stop-recording). Without `ids` it starts ALL
+        recorders on the device. Asynchronous: returns when the command is accepted, not when recorders are
+        running."""
         await self._post("/recorders/control/start", params=_ids(ids))
 
     async def stop_all(self, ids: list[str] | None = None) -> None:
+        """Bulk stop; same `ids` and asynchrony as `start_all`."""
         await self._post("/recorders/control/stop", params=_ids(ids))
 
 

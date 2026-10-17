@@ -72,12 +72,31 @@ this repo cites each number with its source and does not reconcile them.
   backend) and decodes the first and last frame. `torchcodec`, LeRobot's default decoder, supports FFmpeg 4
   to 8; with FFmpeg 9 installed it cannot load and LeRobot falls back to `pyav` by itself.
 
-## Pearl REST API (verified against the published OpenAPI spec, 2026-10-14)
+## Pearl REST API (verified against the published OpenAPI spec, 2026-10-14; re-checked 2026-10-16)
 
-Source: `epiphan-video/pearl_api_swagger_ui`, `api/v2.0/openapi.yml`, 64 paths, and the kb.epiphan.com REST
-pages cited in `.claude/PLAN.md` §2. Base `/api/v2.0`, HTTP Basic auth, every response
+Source: `epiphan-video/pearl_api_swagger_ui`, `api/v2.0/openapi.yml`, 64 paths (the repo's last update is
+2026-06-09, and the 2026-10-16 re-check found the same 64 paths), and the kb.epiphan.com REST pages cited in
+`.claude/PLAN.md` §2. Base `/api/v2.0`, HTTP Basic auth, every response
 `{"status": "ok", "result": ...}`. The client always uses `https://` and verifies TLS unless
-`PEARL_VERIFY_TLS=false`; it assumes HTTPS is enabled on the device.
+`PEARL_VERIFY_TLS=false`; it assumes HTTPS is enabled on the device. The kb says `http://` is the default and
+`https://` applies "if HTTPS is configured on the device", so a device that has not enabled HTTPS needs that
+changed before the first run. Epiphan's "Automate your Pearl with the REST API" guide (September 2026, firmware
+4.24.1 and later) agrees with the spec on every call it covers.
+
+kb page for each call the client makes (all `pearl-family/`, applies to Pearl-2, Pearl Mini, Pearl Nexus and
+Pearl Nano):
+
+| Call | kb page |
+|---|---|
+| `GET /recorders`, `POST /recorders/control/start` and `/stop` | `pearl-rest-api-start-and-stop-recording` |
+| `GET /recorders/status`, `GET /recorders/{rid}/status`, `GET /recorders/{rid}/archive/files`, `GET /recorders/{rid}/archive/files/{fid}` | `pearl-rest-api-check-recorder-status-and-download-recordings` |
+| `GET /system/ident`, `GET /system/firmware` | `pearl-rest-api-check-firmware-version-and-device-identity` |
+| base path, Basic auth, `http` or `https` | `pearl-rest-api-base-url-authentication-and-versioning` |
+
+Two kb details the code relies on. Start and stop are asynchronous: `{"status": "ok"}` "confirms the command was
+processed, not that recording has begun", so poll status. Without `ids`, `POST /recorders/control/start` starts
+all recorders on the device. On Pearl Nano the kb says there is one channel and no multitrack recorders.
+`/system/ident` returns name, location and description only, so the device serial number comes from Edge.
 
 Used here: `GET /recorders`, `GET /recorders/status` (optional `ids`; items carry `id`, `name`, `status`) and
 `GET /recorders/{rid}/status` (`state` is `disabled | starting | started | stopped | error`, plus `duration`,
@@ -86,7 +105,27 @@ Used here: `GET /recorders`, `GET /recorders/status` (optional `ids`; items carr
 (optional `ids` query, asynchronous), `GET /system/ident`, `GET /system/firmware`.
 Archive file fields: `id, name, extension, recording, downloaded, created, duration, size, recorder, uploading,
 event_id`. File names carry a prefix plus date and time with no documented format, so the manifest records
-`created` from the API and never parses the name.
+`created` from the API and never parses the name. The spec types `created` as `date-time` and does not say
+whether it carries a timezone, so it stays raw text until a bench device shows what it returns.
+
+**In the spec, not used yet** (nothing here is relied on until it has run on a bench device):
+
+- `POST /channels/{cid}/bookmarks` adds a bookmark to an archive file while the channel records, MP4 or MOV
+  only. The spec's one required query parameter is `text` ("Bookmark name"). How a bookmark shows up in the file
+  or in the archive listing is not documented, so whether it can carry a per-take label is a bench test.
+- `GET /system/storages` and `/system/storages/{stid}/status`: a device-side storage check, so a preflight could
+  also run against the Pearl itself and not only through Edge.
+- `GET /system/singletouchcontrol/{stcid}/state` (combined state of recorders and publishers),
+  `GET /afu/status`, `GET /system/status`, and `/schedule/events` for events on the device.
+- Writes that would need the same approval as an Edge write: `/system/presets/{pid}/control/apply`,
+  `/system/control/reboot`, `/system/control/factoryreset`.
+- Not in the spec: any call that returns the Date and Time protocol (NTP, PTP or manual). `clock_source` still
+  comes from the operator reading the Admin page.
+
+**EC20.** The same repo publishes a separate EC20 spec (`api/ec20/v1/openapi.yml`, 44 paths, base
+`http://{camera-ip}/api/v1`): PTZ movement, presets, focus, image and streaming settings, and `/misc/record`
+(get and set recording state on the camera). It is not used. Where the camera records to is not in the spec.
+Whether PTZ preset recall gives repeatable framing across takes is a bench question.
 
 ## Rules that shape the code
 
