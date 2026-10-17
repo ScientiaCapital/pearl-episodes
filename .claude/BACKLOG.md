@@ -23,8 +23,9 @@ Effort: S under half a day, M about a day, L several days. Impact is for the Phy
 - Time the export frame sampler on a real 30-minute file (effort S, impact M).
 
 ## Open decisions (Tim)
-- Where the repository lives, given the Epiphan Systems Inc. confidential notice (Epiphan IT).
-- Bold emphasis in the README against the Epiphan style guide.
+- Decided 2026-10-16 (Tim): the repository stays in the ScientiaCapital GitHub org. The copyright and
+  confidential notice stay Epiphan Systems Inc. Not an open question.
+- Decided 2026-10-16: bold emphasis was removed from the README (#35), per the Epiphan style guide.
 - A Dockerfile beside the Pearl (ffmpeg, uv, this package, pulling over REST): offered 2026-10-15, not accepted.
   Containers on the Pearl itself stay unsupported until Product confirms in writing.
 

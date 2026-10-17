@@ -44,3 +44,4 @@ links). Known leftover: GitHub keeps PR #1's original commits under a hidden ref
 - Heavy ML dependencies are an optional extra (`uv sync --extra datasets`), unpinned until first verified
   install on Apple silicon.
 - Copyright Epiphan Systems Inc., all rights reserved (LICENSE, NOTICE).
+- The repository stays in the ScientiaCapital GitHub org (Tim, 2026-10-16). Do not raise it again.

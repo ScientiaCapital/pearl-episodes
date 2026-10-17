@@ -6,9 +6,8 @@ Yesterday's report is in `.claude/archive/2026-10-15-OBSERVER-ARCH.md`; its open
 - [RISK] — Pearl REST over HTTPS — the client always uses `https://`; the kb says `http://` is the default and
   `https://` applies if HTTPS is configured on the device. A bench Pearl without HTTPS fails the first call —
   check the device's setting before `doctor` on bench day
-- [RISK] — repository ownership — README and LICENSE state Epiphan Systems Inc. confidential, while the repo and
-  the Edge Claude Kit and Fleetwatch links sit in a personal GitHub org — a decision for Tim and Epiphan IT, not
-  made in code
+- [DECIDED 2026-10-16] — repository hosting — the repo, the Edge Claude Kit and Fleetwatch stay in the
+  ScientiaCapital GitHub org (Tim's decision); README and LICENSE keep the Epiphan Systems Inc. notice
 - [RISK] — the visible Edge team looks like Epiphan's shared demo fleet and no bench Mini is identified; two
   Pearl-2 units report `disk_space_error` — no recording on the shared fleet unless Tim says so in that session
 - [SMELL] — operator session — preflight is built; start/stop through `batch_recording`, the session log and the
