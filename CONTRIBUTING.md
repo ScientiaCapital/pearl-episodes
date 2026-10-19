@@ -48,5 +48,5 @@ Fine and welcome. Point it at [AGENTS.md](AGENTS.md). You are responsible for ev
 
 ## Security issues
 
-See [SECURITY.md](SECURITY.md). Contributions are made as Epiphan work and belong to Epiphan Systems Inc.
-(see [LICENSE](LICENSE)).
+See [SECURITY.md](SECURITY.md). Contributions are made as Epiphan work, belong to Epiphan Systems Inc. and are licensed under the Apache
+License 2.0 (see [LICENSE](LICENSE)).

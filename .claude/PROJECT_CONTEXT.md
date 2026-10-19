@@ -46,5 +46,5 @@ links). Known leftover: GitHub keeps PR #1's original commits under a hidden ref
 - Exports keep Pearl's H.264 as-is (remux, no re-encode).
 - Heavy ML dependencies are an optional extra (`uv sync --extra datasets`), unpinned until first verified
   install on Apple silicon.
-- Copyright Epiphan Systems Inc., all rights reserved (LICENSE, NOTICE).
+- Copyright Epiphan Systems Inc., licensed Apache 2.0, public, not an officially supported Epiphan product (Tim, 2026-10-19; LICENSE, NOTICE).
 - The repository stays in the ScientiaCapital GitHub org (Tim, 2026-10-16). Do not raise it again.

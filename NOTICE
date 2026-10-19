@@ -1,5 +1,7 @@
 pearl-episodes
-Copyright 2026 Epiphan Systems Inc. All rights reserved. Confidential and proprietary (see LICENSE).
+Copyright 2026 Epiphan Systems Inc.
+
+Licensed under the Apache License, Version 2.0 (see LICENSE).
 
 This product includes software from the Epiphan Edge Claude Kit v1.1.3
 (https://github.com/ScientiaCapital/epiphan-edge-claude-kit), Copyright (c) 2026 Tim Kipper, licensed under the
