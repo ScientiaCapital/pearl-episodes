@@ -262,6 +262,8 @@ contributors and AI assistants are in [CONTRIBUTING.md](CONTRIBUTING.md) and [AG
 
 ## License
 
-Copyright 2026 Epiphan Systems Inc. All rights reserved. Confidential and proprietary; see [LICENSE](LICENSE) and
-[NOTICE](NOTICE) for third-party components. Epiphan, Epiphan Edge, Pearl and EC20 are trademarks of Epiphan
-Systems Inc.
+Copyright 2026 Epiphan Systems Inc. Licensed under the [Apache License 2.0](LICENSE); see [NOTICE](NOTICE) for
+third-party components.
+
+pearl-episodes is not an officially supported Epiphan product. Epiphan, Epiphan Edge, Pearl and EC20 are
+trademarks of Epiphan Systems Inc.
