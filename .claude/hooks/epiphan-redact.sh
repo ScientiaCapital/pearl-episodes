@@ -68,6 +68,12 @@ trap 'rm -f "$tmp"' EXIT
 { printf '%s' "$input" 2>/dev/null; } | jq -c '
   # Cheap string checks first: jq 1.6 compiles a regex on every test() call, and a device list has tens of
   # thousands of keys, so the regex runs only on keys that end like a secret name.
+  # A camelCase or PascalCase name has no separator before its secret word (SrtPassphrase, accessToken, RTMPKey),
+  # so a name is also tested split into words: a break between a lower-case letter or digit and a capital, and
+  # before the last capital of an acronym. Both forms are tested, so a name the split breaks apart (PassPhrase)
+  # still matches.
+  def words: gsub("(?<a>[a-z0-9])(?<b>[A-Z])"; "\(.a)_\(.b)") | gsub("(?<a>[A-Z])(?<b>[A-Z][a-z])"; "\(.a)_\(.b)");
+  def either_form(re): (ascii_downcase | test(re)) or (words | ascii_downcase | test(re));
   def secret_name:
     type == "string" and (ascii_downcase as $k
       | ($k | endswith("key") or endswith("password") or endswith("passphrase") or endswith("passwd") or endswith("pwd")
@@ -75,10 +81,10 @@ trap 'rm -f "$tmp"' EXIT
             or endswith("authorization") or endswith("auth") or endswith("credential") or endswith("credentials")
             or (endswith("name") and contains("stream")))
       and (($k | contains("page") or contains("cursor")) | not)
-      and ($k | test("^(?:.*[_\\-. /:])?(?:streaming[ _-]?key|stream[ _-]?key|stream[ _-]?name|api[ _-]?key|private[ _-]?key|key|password|passphrase|passwd|pwd|pw|pin|psk|pass|secret|token|authorization|auth|credentials?)$")));
-  def stream_id_name: type == "string" and (ascii_downcase as $k | ($k | endswith("id") and contains("stream")) and ($k | test("^(?:.*[_\\-. /:])?stream[ _-]?id$")));
+      and either_form("^(?:.*[_\\-. /:])?(?:streaming[ _-]?key|stream[ _-]?key|stream[ _-]?name|api[ _-]?key|private[ _-]?key|key|password|passphrase|passwd|pwd|pw|pin|psk|pass|secret|token|authorization|auth|credentials?)$"));
+  def stream_id_name: type == "string" and (ascii_downcase as $k | ($k | endswith("id") and contains("stream")) and either_form("^(?:.*[_\\-. /:])?stream[ _-]?id$"));
   def uuid: type == "string" and test("^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$"; "i");
-  def table_col: gsub("^\\s+|\\s+$"; "") | ascii_downcase | gsub("[ -]+"; "_");
+  def table_col: gsub("^\\s+|\\s+$"; "") | gsub("[ -]+"; "_");  # case kept for the word split; the tests ignore case
   def table_secret_col: table_col | (secret_name or stream_id_name);
   def scrub_tables:  # a pipe table whose header names a secret column: mask that column (a stream ID only if not a UUID)
     (if test("\n") then "\n" else "\\n" end) as $sep
@@ -119,6 +125,14 @@ trap 'rm -f "$tmp"' EXIT
            "\(.p)\(.h)\(if .path == null then "" elif ((.h + .path) | test("whip|whep|ingest|publish|upload|live|stream|rtmp|srt|push|broadcast|webhook|hooks\\.slack|discord(?:app)?\\.com/api/webhooks"; "i")) then "/[redacted]" else .path end)\(if .q then "?[redacted]" else "" end)"; "i")
       | gsub("(?<k>[\"'"'"']?\\b(?:streaming[ _-]?key|stream(?:[ _-]|%20)?key|stream(?:[ _-]|%20)?name|password|passphrase|passwd|pwd|secret|client[_-]?secret|access[_-]?token|token|authorization|(?:x[_-])?api[_-]?key|private[_-]?key|pass|pin|psk|pw|key)[\"'"'"']?\\s*[:=]\\s*)(?:(?<dq>\"(?:[^\"\\\\\\n]|\\\\.)*\")|(?<sq>'"'"'(?:[^'"'"'\\\\\\n]|\\\\.)*'"'"')|(?<oq>[\"'"'"'])?(?<s>(?:bearer|basic)\\s+)?(?:\(masks)|(?:\(M)|[^\\s\"'"'"',;}\\]|])+))";
            "\(.k)\(if .dq then "\"[redacted]\"" elif .sq then "'"'"'[redacted]'"'"'" else "\(.oq // "")\(.s // "")[redacted]" end)"; "i")
+      # A quoted key in text that was never parsed, such as JSON cut off mid-value: its value is masked when the key
+      # passes secret_name, so compound names the \b rule above misses (SrtPassphrase, srt_passphrase) are caught too.
+      # Empty strings, true, false and null are kept, as for a parsed key.
+      | gsub("(?<k>(?<q>[\"'"'"'])(?<name>[A-Za-z][\\w.\\- /:]{0,63})\\k<q>\\s*:\\s*)(?:(?<dq>\"(?:[^\"\\\\\\n]|\\\\.)*\")|(?<sq>'"'"'(?:[^'"'"'\\\\\\n]|\\\\.)*'"'"')|(?<v>\(masks)|(?:\(M)|[^\\s\"'"'"',;}\\]|])+))";
+           (.dq // .sq // .v) as $v
+           | if (.name | secret_name) and ([$v] | inside(["\"\"", "'"'"''"'"'", "true", "false", "null"]) | not)
+             then "\(.k)\(if .dq then "\"[redacted]\"" elif .sq then "'"'"'[redacted]'"'"'" else "[redacted]" end)"
+             else "\(.k)\($v)" end)
       | gsub("(?<s>\\b(?:bearer|basic)\\s+)(?:\(masks)|[\\w.~+/=-]*\(M)(?:\(M)|[\\w.~+/=-])*|(?=[\\w.~+/-]*[0-9+/=])[\\w.~+/-]+=*|[\\w.~+/-]{20,}=*)";  # a token: a digit, +, / or =, or 20+ characters
            "\(.s)[redacted]"; "i")
       | gsub("\\bsk-ant-(?:\(M)|[\\w-])+"; "[redacted]"; "i")  # an Anthropic API key, even bare
