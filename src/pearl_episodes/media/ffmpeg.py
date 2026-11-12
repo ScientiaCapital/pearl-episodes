@@ -2,6 +2,10 @@
 
 `concat_copy` joins files with the concat demuxer and `-c copy`: a remux, never a re-encode. It refuses to try
 when the segments' streams differ in codec, pixel format, size or frame rate.
+
+Input files come from a device, so their contents are not trusted. Every input is read with the MP4/MOV
+demuxer forced (never probed by content) and with only the `file` protocol allowed, so a playlist named `.mp4`
+cannot make ffmpeg read other local files or reach the network.
 """
 
 from __future__ import annotations
@@ -15,6 +19,10 @@ from pathlib import Path
 import numpy as np
 from anyio import to_thread
 from pydantic import BaseModel, ConfigDict
+
+# The ffmpeg demuxer that reads MP4 and MOV (its full name is "mov,mp4,m4a,3gp,3g2,mj2").
+_MP4_DEMUXER = "mov"
+_SAFE_INPUT = ("-nostdin", "-protocol_whitelist", "file")
 
 
 class RemuxError(Exception):
@@ -52,7 +60,8 @@ async def _run(*cmd: str) -> bytes:
 
 async def probe(path: Path) -> StreamInfo:
     out = await _run(
-        "ffprobe", "-v", "error", "-select_streams", "v:0", "-count_packets",
+        "ffprobe", "-v", "error", "-protocol_whitelist", "file", "-f", _MP4_DEMUXER,
+        "-select_streams", "v:0", "-count_packets",
         "-show_entries",
         "stream=codec_name,pix_fmt,width,height,r_frame_rate,avg_frame_rate,nb_read_packets,duration",
         "-of", "json", str(path),
@@ -69,7 +78,7 @@ async def probe(path: Path) -> StreamInfo:
 
 
 async def ffmpeg_version() -> str:
-    first_line = (await _run("ffmpeg", "-version")).decode().splitlines()[0]
+    first_line = (await _run("ffmpeg", "-nostdin", "-version")).decode().splitlines()[0]
     return first_line.split()[2]
 
 
@@ -87,10 +96,14 @@ async def concat_copy(parts: list[Path], out: Path) -> None:
     await to_thread.run_sync(partial(out.parent.mkdir, parents=True, exist_ok=True))
     listing = out.with_name(out.name + ".concat.txt")
     part = out.with_name(out.name + ".part")
-    await to_thread.run_sync(listing.write_text, "".join(f"file {_quote(p)}\n" for p in parts))
+    # Each segment may only be opened by the MP4/MOV demuxer. `-xerror` makes a segment that fails to open
+    # fail the join instead of ending it early.
+    entries = "".join(f"file {_quote(p)}\noption format_whitelist {_MP4_DEMUXER}\n" for p in parts)
+    await to_thread.run_sync(listing.write_text, "ffconcat version 1.0\n" + entries)
     try:
         await _run(
-            "ffmpeg", "-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", str(listing),
+            "ffmpeg", *_SAFE_INPUT, "-xerror", "-v", "error", "-y",
+            "-f", "concat", "-safe", "0", "-i", str(listing),
             "-c", "copy", "-movflags", "+faststart", "-f", "mp4", str(part),
         )  # fmt: skip
         await to_thread.run_sync(os.replace, part, out)
@@ -111,7 +124,7 @@ async def sample_frames(path: Path, total: int, info: StreamInfo, max_width: int
     height = max(1, round(info.height * width / info.width))
     scale = f",scale={width}:{height}" if width != info.width else ""
     out = await _run(
-        "ffmpeg", "-v", "error", "-i", str(path),
+        "ffmpeg", *_SAFE_INPUT, "-v", "error", "-f", _MP4_DEMUXER, "-i", str(path),
         "-vf", f"select='lt(n\\,{total})*not(mod(n\\,{step}))'{scale}",
         "-fps_mode", "passthrough", "-f", "rawvideo", "-pix_fmt", "rgb24", "-",
     )  # fmt: skip
