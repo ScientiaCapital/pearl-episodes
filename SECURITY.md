@@ -35,7 +35,7 @@ Problems in Epiphan products, Epiphan Edge or the Epiphan MCP server go to the o
 | The Pearl password stays out of `repr()`, tracebacks and logs | `pearl_episodes.config.Settings` (`SecretStr`) | `tests/test_config.py` |
 | Recordings, episodes, session logs, media files and internal documents never enter git | `.gitignore` (root-anchored) | review, gitleaks |
 
-The write guard and redactor are copied unchanged from the Epiphan Edge Claude Kit v1.1.5 (see NOTICE). Keep
+The write guard and redactor are copied unchanged from the Epiphan Edge Claude Kit (commit bcad720, after v1.1.5) (see NOTICE). Keep
 them byte-identical with the Kit and fix problems there first.
 
 ## Data handling
