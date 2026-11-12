@@ -55,6 +55,6 @@ them byte-identical with the Kit and fix problems there first.
   `check-secrets.sh` denies every file write until `jq` is installed.
 - `check-secrets.sh` sees only writes made through Claude Code's file tools. gitleaks covers commits.
 - The Pearl REST client checks the `{"status": "ok"}` envelope on every call that returns JSON. A download is
-  written to a `.part` file and moved into place only when its byte count matches `Content-Length` and the archive
-  listing's `size`. The client has no checksum from the device to compare against, so the SHA-256 that `pull`
+  written to a `.part` file and moved into place only when its byte count matches `Content-Length`, if the device
+  sends one, and the archive listing's `size`, if the listing has one. The client has no checksum from the device to compare against, so the SHA-256 that `pull`
   records is a hash of the bytes that arrived.
