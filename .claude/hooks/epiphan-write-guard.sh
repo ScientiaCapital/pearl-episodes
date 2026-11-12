@@ -5,7 +5,9 @@
 #   - any other tool on the device server itself (the kit's "epiphan" server, or a connector named like
 #     "Epiphan MCP" / "Epiphan Cloud" / "Test Epiphan Cloud" / "Epiphan Edge") needs approval, even one named like
 #     a read (get_*, kb_*), so tools the server adds later are covered;
-#   - other Epiphan services (a connector for docs, CRM, ...) are left to Claude Code's normal permissions.
+#   - the other Epiphan services this kit knows (the claude.ai Epiphan Ai, Knowledge, Brand, Analytics and
+#     epiphan.com WordPress connectors) are left to Claude Code's normal permissions;
+#   - any other server with "epiphan" in its name is treated like the device server: tools off the read list ask.
 # Disruptive writes (reboot, firmware, stop, delete, presets) get a louder warning in the approval prompt.
 # In bypass mode Claude Code skips "ask", so writes are denied there instead ("deny" still applies).
 # With EPIPHAN_READ_ONLY set to anything but empty, 0, false, no or off (spaces and case ignored), every one of
@@ -17,6 +19,7 @@
 READS=" get_devices_in_my_team get_device_info get_device_sources get_system_status_for_devices get_recorder_status_for_devices get_storage_status_for_devices get_channel_settings get_channel_image get_channel_audio_levels get_stream_endpoint get_stream_endpoints get_team_presets get_cms_events_for_device get_cms_events_for_devices get_current_or_next_cms_event_for_device get_current_or_next_cms_events_for_devices get_cms_names_for_devices get_devices_by_cms kb_search kb_fetch "
 WRITES=" batch_recording start_stream_endpoint stop_stream_endpoint create_cms_event update_cms_event delete_cms_event cms_event_action confirm_cms_event_on_device create_stream_endpoint update_stream_endpoint delete_stream_endpoint apply_team_preset switch_device_to_cms batch_reboot batch_firmware_update "
 DEVICE_SERVER='^(epiphan([-_].*)?|claude_ai_(.*_)?epiphan([-_]?(mcp|cloud|edge)([-_].*)?)?|plugin_.*epiphan.*)$'
+OTHER_SERVICES='^claude_ai_epiphan_(ai|knowledge|brand|analytics|com_wordpress)$'
 input=$(cat)
 unsure=""
 
@@ -73,4 +76,6 @@ case "$READS" in *" $tool "*) exit 0 ;; esac
 case "$WRITES" in *" $tool "*) write ;; esac
 # Anything else on the device server asks, even a new tool named like a read: only the list above is trusted.
 printf '%s' "$server" | grep -qiE "$DEVICE_SERVER" && write
-exit 0  # another Epiphan service (docs, CRM, ...): Claude Code's normal permissions apply
+# Another Epiphan service the kit knows (CRM, docs, brand, analytics, website): Claude Code's normal permissions apply.
+printf '%s' "$server" | grep -qiE "$OTHER_SERVICES" && exit 0
+write  # an Epiphan-named server the kit doesn't know may carry device tools under new names: ask

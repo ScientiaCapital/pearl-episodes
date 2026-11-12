@@ -11,7 +11,11 @@
 #     and their ?query;
 #   - "stream key: abc", "api_key=abc", "Bearer abc" style text is masked too, and so is user:password@ in
 #     any URL;
-#   - an Anthropic API key (sk-ant-api03-..., sk-ant-admin01-...) is masked even bare, with no "key:" in front;
+#   - an Anthropic API key (sk-ant-api03-..., sk-ant-admin01-...) is masked even bare, with no "key:" in front,
+#     and so are other well-known token shapes: JWTs, AWS access key IDs, GitHub, OpenAI project and Slack
+#     tokens, and PEM private key blocks;
+#   - in a settings row ({"param"/"setting"/"option"/...: "<secret name>", ...}) every other field is masked,
+#     except ones that only describe it (id, name, label, type, unit, description, ...);
 #   - a "[redacted]" already in the text is read as part of the value around it, so typing one in front of a
 #     secret can't hide the rest, and redacting twice gives the same text as once.
 # JSON is parsed, not pattern-matched, including JSON inside strings. A single text value over 200 KB that
@@ -47,15 +51,16 @@ esac
 
 # Fast path: most outputs (device lists, status) mention nothing secret-like. Skip jq for them.
 # (grep exits 1 for "no match"; anything else, like an error, goes on to the full check.)
-printf '%s' "$input" | grep -qiE 'key|pass|pwd|pin|psk|pw"|secret|token|auth|cred|bearer|basic|sk-ant-|stream|webhook|:\\*/|u002f|%2f'
+printf '%s' "$input" | grep -qiE 'key|pass|pwd|pin|psk|pw"|secret|token|auth|cred|bearer|basic|sk-ant-|stream|webhook|:\\*/|u002f|%2f|eyj|akia|gh[pousr]_|github_pat_|sk-proj-|xox[abpr]-'
 [ $? -eq 1 ] && exit 0
 
 if ! command -v jq >/dev/null 2>&1; then
   # Without jq, withhold anything secret-shaped: a field named like a secret ("StreamingKey": ..., "srt.passphrase": ...,
-  # "pin": ...), an id/name/label whose value names a secret ("id": "publisher.rtmp.key"), "stream key: ...",
-  # "api_key=..." or "Bearer ..." text, an sk-ant-... key, a streaming URL with a path, an https URL with an ingest,
+  # "pin": ..., "passwords": ...), any field whose value names a secret ("id": "publisher.rtmp.key"), "stream key: ...",
+  # "api_key=..." or "Bearer ..." text, an sk-ant-... key or another known token shape (JWT, AWS, GitHub, OpenAI
+  # project, Slack, PEM private key), a streaming URL with a path, an https URL with an ingest,
   # live or webhook path, or any URL with user:password@ or a ?query. Words like "Keynote" in an event title don't count.
-  printf '%s' "$input" | grep -qiE '"[A-Za-z0-9_. /:-]*(key|stream[ _-]?name|stream[ _-]?id|password|passphrase|passwd|pwd|pw|pin|psk|pass|secret|token|authorization|auth|credentials?)\\*"[[:space:]]*:|"(id|name|key|label|field)\\*"[[:space:]]*:[[:space:]]*\\*"[^"]*(key|password|passphrase|passwd|pwd|pin|psk|secret|token)\\*"|(stream([ _-]|%20)?(key|name)|password|passphrase|passwd|pwd|secret|token|authorization|(^|[^a-z0-9])(key|pin|psk|pass|pw))["'\'']?[[:space:]]*[:=]|bearer[[:space:]]|basic[[:space:]]+[A-Za-z0-9+/=]{8}|(^|[^A-Za-z0-9_])sk-ant-|(rtmp[a-z]*|srt|rtsp|rist):(\\*/){2}[^"[:space:]]*(\\*/|\?)|:(\\*/){2}[^/"[:space:]]*@|https?:(\\*/){2}[^"[:space:]]*(\?|whip|whep|ingest|publish|upload|live|stream|rtmp|srt|push|broadcast|webhook|hooks\.slack|discord(app)?\.com/api/webhooks)|\|[[:space:]]*(stream[ _-]?(key|name|id)|key|password|passphrase|token|secret)[[:space:]]*\|'
+  printf '%s' "$input" | grep -qiE '"[A-Za-z0-9_. /:-]*(key|stream[ _-]?name|stream[ _-]?id|password|passphrase|passwd|pwd|pw|pin|psk|pass|secret|token|authorization|auth|credentials?)s?\\*"[[:space:]]*:|"[A-Za-z0-9_. -]+\\*"[[:space:]]*:[[:space:]]*\\*"[^"]*(key|password|passphrase|passwd|pwd|pin|psk|secret|token)s?\\*"|(stream([ _-]|%20)?(key|name)|password|passphrase|passwd|pwd|secret|token|authorization|(^|[^a-z0-9])(key|pin|psk|pass|pw))["'\'']?[[:space:]]*[:=]|bearer[[:space:]]|basic[[:space:]]+[A-Za-z0-9+/=]{8}|(^|[^A-Za-z0-9_])sk-(ant|proj)-|eyJ[A-Za-z0-9_-]{4,}\.eyJ|AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9]{20}|github_pat_[A-Za-z0-9_]{20}|xox[abpr]-[A-Za-z0-9-]{4}|-----BEGIN [A-Z ]*PRIVATE KEY|(rtmp[a-z]*|srt|rtsp|rist):(\\*/){2}[^"[:space:]]*(\\*/|\?)|:(\\*/){2}[^/"[:space:]]*@|https?:(\\*/){2}[^"[:space:]]*(\?|whip|whep|ingest|publish|upload|live|stream|rtmp|srt|push|broadcast|webhook|hooks\.slack|discord(app)?\.com/api/webhooks)|\|[[:space:]]*(stream[ _-]?(key|name|id)|key|password|passphrase|token|secret)[[:space:]]*\|'
   [ $? -eq 1 ] && exit 0
   withhold "may contain stream keys and jq, which hides them, isn't installed (Mac: brew install jq; Linux: install the jq package; Windows: winget install jqlang.jq). Then try again"
 fi
@@ -74,14 +79,20 @@ trap 'rm -f "$tmp"' EXIT
   # still matches.
   def words: gsub("(?<a>[a-z0-9])(?<b>[A-Z])"; "\(.a)_\(.b)") | gsub("(?<a>[A-Z])(?<b>[A-Z][a-z])"; "\(.a)_\(.b)");
   def either_form(re): (ascii_downcase | test(re)) or (words | ascii_downcase | test(re));
+  # A plural (stream_keys, passwords, secrets) is read as its singular, and a few unambiguous secret words count
+  # even run together with the word before them (sharedsecret, adminpassword, rtmpkey); "key", "pin" and "pass"
+  # alone do not count, so monkey, hotkeys, spin and bypass are kept.
+  def singular: (ascii_downcase | endswith("keys") or endswith("passwords") or endswith("passphrases") or endswith("secrets")
+                   or endswith("tokens")) as $p | if $p then .[:-1] else . end;
   def secret_name:
-    type == "string" and (ascii_downcase as $k
+    type == "string" and (singular | ascii_downcase as $k
       | ($k | endswith("key") or endswith("password") or endswith("passphrase") or endswith("passwd") or endswith("pwd")
             or endswith("pw") or endswith("pin") or endswith("psk") or endswith("pass") or endswith("secret") or endswith("token")
             or endswith("authorization") or endswith("auth") or endswith("credential") or endswith("credentials")
             or (endswith("name") and contains("stream")))
       and (($k | contains("page") or contains("cursor")) | not)
-      and either_form("^(?:.*[_\\-. /:])?(?:streaming[ _-]?key|stream[ _-]?key|stream[ _-]?name|api[ _-]?key|private[ _-]?key|key|password|passphrase|passwd|pwd|pw|pin|psk|pass|secret|token|authorization|auth|credentials?)$"));
+      and (either_form("^(?:.*[_\\-. /:])?(?:streaming[ _-]?key|stream[ _-]?key|stream[ _-]?name|api[ _-]?key|private[ _-]?key|key|password|passphrase|passwd|pwd|pw|pin|psk|pass|secret|token|authorization|auth|credentials?)$")
+           or ($k | test("^[a-z0-9]+(?:password|passphrase|passwd|secret|token|(?:streaming|stream|api|private|access|secret|auth|rtmp|srt|publish|ingest)key)$"))));
   def stream_id_name: type == "string" and (ascii_downcase as $k | ($k | endswith("id") and contains("stream")) and either_form("^(?:.*[_\\-. /:])?stream[ _-]?id$"));
   def uuid: type == "string" and test("^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$"; "i");
   def table_col: gsub("^\\s+|\\s+$"; "") | gsub("[ -]+"; "_");  # case kept for the word split; the tests ignore case
@@ -112,10 +123,12 @@ trap 'rm -f "$tmp"' EXIT
   def masks: "(?:\(M))+(?![\\w/.~%+=&:@?#\\[-])";
   def thru(c): "(?:\(masks)|(?:\(M)|\(c))*)";  # a value of c characters, read through any masks in it
   def scrub_text:
-    if test("://|:\\\\/\\\\/|key|pass|pwd|pin|psk|\\bpw\\b|secret|token|auth|cred|bearer|basic|stream|webhook|sk-ant-"; "i") | not then .
+    if test("://|:\\\\/\\\\/|key|pass|pwd|pin|psk|\\bpw\\b|secret|token|auth|cred|bearer|basic|stream|webhook|sk-ant-|eyj|akia|gh[pousr]_|github_pat_|sk-proj-|xox[abpr]-"; "i") | not then .
     elif length > 200000 then "[Epiphan kit: a long text value was withheld because it was too long to check for stream keys]"
     else
-      (if test("\\|") then scrub_tables else . end)
+      # A PEM private key block, up to its END line or, if cut off, the end of the text.
+      gsub("-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----(?:[\\s\\S]*?-----END [A-Z0-9 ]*PRIVATE KEY-----|[\\s\\S]*$)"; "[redacted]")
+      | (if test("\\|") then scrub_tables else . end)
       | gsub("(?<p>\\b[a-z][a-z0-9+.-]*(?:://|:\\\\/\\\\/))(?:\(M)|[^/?#\\s\"<>()\\[\\]])*@"; "\(.p)"; "i")  # user:password@, any scheme
       | gsub("(?<p>\\b(?:rtmp[a-z]*|srt|rtsp|rist)://)(?<h>[^/?#\\s\"'"'"'<>()\\[\\],@]+)(?<r>[/?#]\(thru("[^\\s\"'"'"'<>()\\[\\],]")))?";
            "\(.p)\(.h)\(if .r then "/[redacted]" else "" end)"; "i")
@@ -123,7 +136,8 @@ trap 'rm -f "$tmp"' EXIT
            "\(.p)\(.h)\\/[redacted]"; "i")
       | gsub("(?<p>\\b(?:https?|wss?|s?ftps?)://)(?<h>[^/?#\\s\"'"'"'<>()\\[\\],@]+)(?<path>/\(thru("[^?#\\s\"'"'"'<>()\\[\\],]")))?(?<q>\\?\(thru("[^\\s\"'"'"'<>()\\[\\],]")))?";
            "\(.p)\(.h)\(if .path == null then "" elif ((.h + .path) | test("whip|whep|ingest|publish|upload|live|stream|rtmp|srt|push|broadcast|webhook|hooks\\.slack|discord(?:app)?\\.com/api/webhooks"; "i")) then "/[redacted]" else .path end)\(if .q then "?[redacted]" else "" end)"; "i")
-      | gsub("(?<k>[\"'"'"']?\\b(?:streaming[ _-]?key|stream(?:[ _-]|%20)?key|stream(?:[ _-]|%20)?name|password|passphrase|passwd|pwd|secret|client[_-]?secret|access[_-]?token|token|authorization|(?:x[_-])?api[_-]?key|private[_-]?key|pass|pin|psk|pw|key)[\"'"'"']?\\s*[:=]\\s*)(?:(?<dq>\"(?:[^\"\\\\\\n]|\\\\.)*\")|(?<sq>'"'"'(?:[^'"'"'\\\\\\n]|\\\\.)*'"'"')|(?<oq>[\"'"'"'])?(?<s>(?:bearer|basic)\\s+)?(?:\(masks)|(?:\(M)|[^\\s\"'"'"',;}\\]|])+))";
+      # A prefix joined by _ . or - (srt_passphrase, rtmp.key, my-api-key) is part of the name; monkey and keyboard are not.
+      | gsub("(?<k>[\"'"'"']?\\b(?:[a-z0-9]+[_.-])*(?:streaming[ _-]?key|stream(?:[ _-]|%20)?key|stream(?:[ _-]|%20)?name|password|passphrase|passwd|pwd|secret|client[_-]?secret|access[_-]?token|token|authorization|(?:x[_-])?api[_-]?key|private[_-]?key|pass|pin|psk|pw|key)[\"'"'"']?\\s*[:=]\\s*)(?:(?<dq>\"(?:[^\"\\\\\\n]|\\\\.)*\")|(?<sq>'"'"'(?:[^'"'"'\\\\\\n]|\\\\.)*'"'"')|(?<oq>[\"'"'"'])?(?<s>(?:bearer|basic)\\s+)?(?:\(masks)|(?:\(M)|[^\\s\"'"'"',;}\\]|])+))";
            "\(.k)\(if .dq then "\"[redacted]\"" elif .sq then "'"'"'[redacted]'"'"'" else "\(.oq // "")\(.s // "")[redacted]" end)"; "i")
       # A quoted key in text that was never parsed, such as JSON cut off mid-value: its value is masked when the key
       # passes secret_name, so compound names the \b rule above misses (SrtPassphrase, srt_passphrase) are caught too.
@@ -136,10 +150,36 @@ trap 'rm -f "$tmp"' EXIT
       | gsub("(?<s>\\b(?:bearer|basic)\\s+)(?:\(masks)|[\\w.~+/=-]*\(M)(?:\(M)|[\\w.~+/=-])*|(?=[\\w.~+/-]*[0-9+/=])[\\w.~+/-]+=*|[\\w.~+/-]{20,}=*)";  # a token: a digit, +, / or =, or 20+ characters
            "\(.s)[redacted]"; "i")
       | gsub("\\bsk-ant-(?:\(M)|[\\w-])+"; "[redacted]"; "i")  # an Anthropic API key, even bare
+      # Other well-known token shapes, even bare: OpenAI project key, JWT, AWS access key ID, GitHub, Slack.
+      | gsub("\\bsk-proj-(?:\(M)|[\\w-])+"; "[redacted]")
+      | gsub("\\beyJ[\\w-]{4,}\\.eyJ[\\w-]{4,}\\.[\\w-]*"; "[redacted]")
+      | gsub("\\bAKIA[0-9A-Z]{16}\\b"; "[redacted]")
+      | gsub("\\b(?:gh[pousr]_[A-Za-z0-9]{20,}|github_pat_\\w{20,})"; "[redacted]")
+      | gsub("\\bxox[abpr]-[A-Za-z0-9-]{8,}"; "[redacted]")
     end;
+  # A settings row names its secret in one field and holds it in another. When id, name, key, label or field names
+  # a secret, a value-like field (value, val, current, default, data) is masked; when a parameter-like field
+  # (param, setting, option, property, field, key, ...) names one, every other field is masked except those that
+  # only describe the row (*id, *name, label, title, type, unit, description, ...).
+  def names_secret: secret_name or stream_id_name;
+  def value_field: ascii_downcase | IN("value", "val", "v", "current", "current_value", "default", "default_value", "data");
+  def param_field: ascii_downcase | IN("param", "parameter", "param_name", "setting", "setting_name", "option", "property",
+                                       "prop", "attribute", "attr", "variable", "var", "field", "field_name", "key", "key_name", "k");
+  def describes_row: ascii_downcase | (endswith("id") or endswith("name")
+                       or IN("label", "title", "type", "kind", "unit", "units", "description", "desc", "help", "hint",
+                             "comment", "note", "notes", "category", "group", "section", "status", "state", "format"));
+  def scrub_row:
+    ([.id, .name, .key, .label, .field] | any(names_secret)) as $named
+    | [to_entries[] | select((.key | param_field) and (.value | names_secret)) | .key] as $params
+    | if ($named or ($params | length) > 0) | not then . else
+        with_entries(.key as $f
+          | if any($params[]; . == $f) then .
+            elif ($f | value_field) or (($params | length) > 0 and ($f | describes_row | not)) then .value |= mask
+            else . end)
+      end;
   def redact:
     if type == "object" then
-      (if has("value") and ([.id, .name, .key, .label, .field] | any(secret_name or stream_id_name)) then .value |= mask else . end)
+      scrub_row
       # The "stream" field of a publisher is the RTMP stream key when it sits next to url/username/password
       # (Pearl publisher settings); a bare "stream": true flag or a stream name without a URL is left alone.
       | (if (has("stream") or has("Stream") or has("STREAM"))
