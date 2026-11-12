@@ -8,6 +8,7 @@ from pydantic import ValidationError
 
 from pearl_episodes.config import Settings
 from pearl_episodes.episodes.manifest import sha256_of
+from pearl_episodes.pearl import client as client_module
 from pearl_episodes.pearl.client import (
     PAGE_SIZE,
     FileStillRecording,
@@ -15,6 +16,7 @@ from pearl_episodes.pearl.client import (
     PearlApiError,
     PearlClient,
     RecordingFile,
+    UnsafeIdError,
 )
 
 
@@ -345,3 +347,126 @@ async def test_recorder_status_without_ids_sends_no_ids_filter() -> None:
 
     async with PearlClient(_settings(), transport=httpx.MockTransport(handler)) as client:
         assert await client.recorder_status() == []
+
+
+# Ids from the caller or the device go into URL paths, so they must be plain names.
+
+UNSAFE_IDS = ["../system", "1/../../x", "", ".hidden", "1?x=y", "1#frag", "a b", "%2e%2e"]
+
+
+def _no_request_transport() -> httpx.MockTransport:
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise AssertionError(f"no request may reach the device: {request.url}")
+
+    return httpx.MockTransport(handler)
+
+
+@pytest.mark.parametrize("bad", UNSAFE_IDS)
+async def test_an_unsafe_recorder_id_never_reaches_a_url(bad: str, tmp_path: Path) -> None:
+    async with PearlClient(_settings(), transport=_no_request_transport()) as client:
+        with pytest.raises(UnsafeIdError):
+            await client.recorder_status_one(bad)
+        with pytest.raises(UnsafeIdError):
+            await client.list_recordings(bad)
+        with pytest.raises(UnsafeIdError):
+            await client.download(bad, _recording_file(size=9), tmp_path / "7.mp4")
+    assert list(tmp_path.iterdir()) == []
+
+
+@pytest.mark.parametrize("bad", UNSAFE_IDS)
+async def test_an_unsafe_file_id_never_reaches_a_url(bad: str, tmp_path: Path) -> None:
+    file = RecordingFile.model_validate({**_file(7), "id": bad, "size": 9})
+    async with PearlClient(_settings(), transport=_no_request_transport()) as client:
+        with pytest.raises(UnsafeIdError):
+            await client.download("1", file, tmp_path / "7.mp4")
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_unsafe_id_error_is_a_value_error() -> None:
+    assert issubclass(UnsafeIdError, ValueError)
+
+
+# Download size: a device that sends more than it promised, or a nonsense Content-Length, is refused.
+
+
+async def test_download_stops_reading_once_it_passes_the_listing_size(tmp_path: Path) -> None:
+    served: list[int] = []
+
+    async def body() -> AsyncIterator[bytes]:
+        for i in range(1000):
+            served.append(i)
+            yield b"x" * 1024
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=body())
+
+    async with PearlClient(_settings(), transport=httpx.MockTransport(handler)) as client:
+        with pytest.raises(IncompleteDownload) as info:
+            await client.download("1", _recording_file(size=2048), tmp_path / "7.mp4")
+    assert info.value.expected == 2048
+    assert len(served) < 10
+    assert list(tmp_path.iterdir()) == []
+
+
+async def test_download_without_any_size_is_capped(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(client_module, "MAX_DOWNLOAD_BYTES", 4096)
+
+    async def body() -> AsyncIterator[bytes]:
+        for _ in range(1000):
+            yield b"x" * 1024
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=body())
+
+    async with PearlClient(_settings(), transport=httpx.MockTransport(handler)) as client:
+        with pytest.raises(IncompleteDownload) as info:
+            await client.download("1", _recording_file(size=None), tmp_path / "7.mp4")
+    assert info.value.expected == 4096
+    assert list(tmp_path.iterdir()) == []
+
+
+@pytest.mark.parametrize("length", ["nine", "-9", "9.0", "+9", "1e3", "0x9"])
+async def test_download_with_a_bad_content_length_is_a_device_error(tmp_path: Path, length: str) -> None:
+    async with _streaming_client([b"abcdefghi"], {"Content-Length": length}) as client:
+        with pytest.raises(PearlApiError, match="Content-Length"):
+            await client.download("1", _recording_file(size=9), tmp_path / "7.mp4")
+    assert list(tmp_path.iterdir()) == []
+
+
+async def test_download_whose_content_length_disagrees_with_the_listing_is_refused_unread(
+    tmp_path: Path,
+) -> None:
+    served: list[bytes] = []
+
+    async def body() -> AsyncIterator[bytes]:
+        served.append(b"abc")
+        yield b"abc"
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=body(), headers={"Content-Length": "999999"})
+
+    async with PearlClient(_settings(), transport=httpx.MockTransport(handler)) as client:
+        with pytest.raises(IncompleteDownload) as info:
+            await client.download("1", _recording_file(size=9), tmp_path / "7.mp4")
+    assert (info.value.expected, info.value.got) == (9, 999999)
+    assert served == []
+    assert list(tmp_path.iterdir()) == []
+
+
+async def test_the_cap_holds_even_when_the_device_promises_more(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(client_module, "MAX_DOWNLOAD_BYTES", 4096)
+
+    async def body() -> AsyncIterator[bytes]:
+        for _ in range(1000):
+            yield b"x" * 1024
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=body(), headers={"Content-Length": str(1000 * 1024)})
+
+    async with PearlClient(_settings(), transport=httpx.MockTransport(handler)) as client:
+        with pytest.raises(IncompleteDownload) as info:
+            await client.download("1", _recording_file(size=1000 * 1024), tmp_path / "7.mp4")
+    assert info.value.expected == 4096
+    assert list(tmp_path.iterdir()) == []

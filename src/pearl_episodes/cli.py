@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import re
 import sys
 from collections.abc import Awaitable, Callable
 from pathlib import Path
@@ -29,12 +30,28 @@ from pearl_episodes.operate.preflight import (
     format_report,
 )
 from pearl_episodes.operate.session_log import SessionLog, preflight_entry
-from pearl_episodes.pearl.client import PearlApiError, PearlClient
+from pearl_episodes.pearl.client import (
+    IncompleteDownload,
+    PearlApiError,
+    PearlClient,
+    UnsafeIdError,
+    check_id,
+)
 
 REQUIRED_MODULES = ("httpx", "pydantic", "pydantic_settings")
 OPTIONAL_MODULES = ("lerobot", "tensorflow", "tensorflow_datasets")
 
 type Transport = httpx.AsyncBaseTransport | None
+
+# A host or IP as one folder name: no path separators, and it cannot be `.`, `..` or hidden.
+_SAFE_HOST = re.compile(r"^[A-Za-z0-9\[][A-Za-z0-9.:\[\]_-]*$")
+
+
+def _recordings_folder(settings: Settings, recorder_id: str) -> Path:
+    """`<recordings dir>/<host>/<recorder_id>`. Both parts must be plain folder names, or `UnsafeIdError`."""
+    if not _SAFE_HOST.fullmatch(settings.host):
+        raise UnsafeIdError(f"unsafe host for a folder name: {settings.host!r}")
+    return settings.episodes_recordings_dir / settings.host / check_id(recorder_id, "recorder id")
 
 
 def _missing_settings(exc: ValidationError) -> str:
@@ -72,7 +89,7 @@ async def _list(client: PearlClient, settings: Settings, recorder_id: str) -> No
 
 
 async def _pull(client: PearlClient, settings: Settings, recorder_id: str) -> None:
-    folder = settings.episodes_recordings_dir / settings.host / recorder_id
+    folder = _recordings_folder(settings, recorder_id)
     report = await pull(client, recorder_id, folder)
     print(
         f"downloaded {len(report.downloaded)}, already pulled {len(report.skipped)}, "
@@ -102,6 +119,12 @@ def _run(action: Callable[[PearlClient, Settings], Awaitable[None]], transport: 
     except PearlApiError as exc:
         print(f"device error: {exc}", file=sys.stderr)
         return 1
+    except UnsafeIdError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+    except IncompleteDownload as exc:
+        print(f"download: {exc}", file=sys.stderr)
+        return 1
     return 0
 
 
@@ -112,13 +135,17 @@ def _package(args: argparse.Namespace) -> int:
     except ValidationError as exc:
         print(f"settings: {_missing_settings(exc)} not set; copy .env.example to .env", file=sys.stderr)
         return 1
-    cameras = [
-        CameraInput(
-            channel_id, channel_name, recorder_id,
-            settings.episodes_recordings_dir / settings.host / recorder_id, file_ids.split(","),
-        )
-        for channel_id, channel_name, recorder_id, file_ids in args.camera
-    ]  # fmt: skip
+    try:
+        cameras = [
+            CameraInput(
+                channel_id, channel_name, recorder_id,
+                _recordings_folder(settings, recorder_id), file_ids.split(","),
+            )
+            for channel_id, channel_name, recorder_id, file_ids in args.camera
+        ]  # fmt: skip
+    except UnsafeIdError as exc:
+        print(f"package: {exc}", file=sys.stderr)
+        return 1
     labels = TakeLabels(
         device_serial=args.serial, device_model=args.model, firmware=args.firmware, task_label=args.task,
         operator=args.operator, scene=args.scene, clock_source=args.clock_source, notes=args.notes,

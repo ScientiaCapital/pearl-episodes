@@ -192,3 +192,65 @@ def test_export_of_a_folder_without_a_manifest_is_one_stderr_line_and_exit_1(
 ) -> None:
     assert main(["export", str(tmp_path)]) == 1
     assert len(_stderr_lines(capsys)) == 1
+
+
+@pytest.mark.parametrize("bad", ["..", "../x", "a/b", ".hidden", ""])
+def test_pull_with_an_unsafe_recorder_id_is_one_stderr_line_and_exit_1(
+    configured: None,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+    bad: str,
+) -> None:
+    monkeypatch.setenv("PEARL_EPISODES_RECORDINGS_DIR", str(tmp_path / "rec"))
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise AssertionError("no request may reach the device")
+
+    assert main(["pull", bad], transport=httpx.MockTransport(handler)) == 1
+    lines = _stderr_lines(capsys)
+    assert len(lines) == 1 and "unsafe" in lines[0]
+    assert not (tmp_path / "rec").exists()
+
+
+@pytest.mark.parametrize("host", ["..", "a/b", ".hidden", "a\\b"])
+def test_pull_with_a_host_that_is_not_a_plain_folder_name_is_refused(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path: Path, host: str
+) -> None:
+    monkeypatch.setenv("PEARL_HOST", host)
+    monkeypatch.setenv("PEARL_EPISODES_RECORDINGS_DIR", str(tmp_path / "rec"))
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise AssertionError("no request may reach the device")
+
+    assert main(["pull", "1"], transport=httpx.MockTransport(handler)) == 1
+    lines = _stderr_lines(capsys)
+    assert len(lines) == 1 and "unsafe" in lines[0]
+    assert not (tmp_path / "rec").exists()
+
+
+def test_package_with_an_unsafe_recorder_id_is_one_stderr_line_and_exit_1(
+    configured: None, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    monkeypatch.setenv("PEARL_EPISODES_RECORDINGS_DIR", str(tmp_path / "rec"))
+    args = _package_args()
+    args[args.index("Wide Cam") + 1] = "../.."
+    assert main(args) == 1
+    lines = _stderr_lines(capsys)
+    assert len(lines) == 1 and "unsafe" in lines[0]
+
+
+def test_pull_of_a_download_that_overruns_its_size_is_one_stderr_line_and_exit_1(
+    configured: None, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    monkeypatch.setenv("PEARL_EPISODES_RECORDINGS_DIR", str(tmp_path / "rec"))
+    item = {"id": "1", "name": "Cam", "extension": "mp4", "size": 4, "recorder": "1"}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/archive/files"):
+            return httpx.Response(200, json={"status": "ok", "result": [item]})
+        return httpx.Response(200, content=b"much more than four bytes")
+
+    assert main(["pull", "1"], transport=httpx.MockTransport(handler)) == 1
+    lines = _stderr_lines(capsys)
+    assert len(lines) == 1 and "expected 4 bytes" in lines[0]
