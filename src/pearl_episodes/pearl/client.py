@@ -9,6 +9,7 @@ spec's.
 from __future__ import annotations
 
 import os
+import re
 from functools import partial
 from pathlib import Path
 from typing import Any, Literal
@@ -20,6 +21,21 @@ from pydantic import BaseModel, ConfigDict
 from pearl_episodes.config import Settings
 
 PAGE_SIZE = 100
+# A local guard, not a device fact: no single download reads past this, so a device cannot fill the disk.
+MAX_DOWNLOAD_BYTES = 64 * 1024**3
+# Recorder and file ids go into URL paths and folder names, so only plain names are accepted.
+SAFE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
+
+
+class UnsafeIdError(ValueError):
+    """An id that is not a plain name (letters, digits, `_`, `-`) and so cannot go into a path."""
+
+
+def check_id(value: str, what: str) -> str:
+    """Return `value` if it is a plain name; raise `UnsafeIdError` naming `what` otherwise."""
+    if not SAFE_ID.fullmatch(value):
+        raise UnsafeIdError(f"unsafe {what}: {value!r}")
+    return value
 
 
 class RecordingFile(BaseModel):
@@ -178,7 +194,8 @@ class PearlClient:
     async def recorder_status_one(self, recorder_id: str) -> RecorderStatus:
         """`GET /recorders/{rid}/status`
         (kb: pearl-family/pearl-rest-api-check-recorder-status-and-download-recordings)."""
-        return RecorderStatus.model_validate(await self._get_result(f"/recorders/{recorder_id}/status", dict))
+        path = f"/recorders/{check_id(recorder_id, 'recorder id')}/status"
+        return RecorderStatus.model_validate(await self._get_result(path, dict))
 
     async def device_info(self) -> DeviceInfo:
         """`GET /system/ident` (name, location, description) and `GET /system/firmware`
@@ -197,7 +214,7 @@ class PearlClient:
     async def list_recordings(self, recorder_id: str) -> list[RecordingFile]:
         """All archive files for one recorder, paged with the spec's `from` and `limit` parameters
         (kb: pearl-family/pearl-rest-api-check-recorder-status-and-download-recordings)."""
-        path = f"/recorders/{recorder_id}/archive/files"
+        path = f"/recorders/{check_id(recorder_id, 'recorder id')}/archive/files"
         files: list[RecordingFile] = []
         seen: set[str] = set()
         while True:
@@ -214,16 +231,21 @@ class PearlClient:
         """Stream one recording to disk (`application/octet-stream`; a missing recorder or file is a 404;
         kb: pearl-family/pearl-rest-api-check-recorder-status-and-download-recordings).
 
-        Refuses a file still `recording` or `uploading`. Writes to `<dest>.part`, compares the byte count with
-        `Content-Length` and with the listing's `size`, and only then moves it into place, so a truncated
-        download never sits at the final path. Disk writes run in a worker thread.
+        Refuses an unsafe recorder or file id and a file still `recording` or `uploading`. Writes to
+        `<dest>.part`, compares the byte count with `Content-Length` and with the listing's `size`, and only
+        then moves it into place, so a truncated download never sits at the final path. Stops reading as soon
+        as more bytes arrive than either promised, and never reads past `MAX_DOWNLOAD_BYTES`. Disk writes run
+        in a worker thread.
         """
+        path = (
+            f"/recorders/{check_id(recorder_id, 'recorder id')}/archive/files/{check_id(file.id, 'file id')}"
+        )
         if file.recording or file.uploading:
             raise FileStillRecording(file.id)
         part = dest.with_name(dest.name + ".part")
         await to_thread.run_sync(partial(dest.parent.mkdir, parents=True, exist_ok=True))
         try:
-            got = await self._stream_to(f"/recorders/{recorder_id}/archive/files/{file.id}", part)
+            got = await self._stream_to(path, part, file.size)
             if file.size is not None and got != file.size:
                 raise IncompleteDownload(file.size, got)
             await to_thread.run_sync(os.replace, part, dest)
@@ -232,21 +254,30 @@ class PearlClient:
             raise
         return dest
 
-    async def _stream_to(self, path: str, part: Path) -> int:
-        """Stream `path` into `part`; return the byte count, which must match `Content-Length` when sent."""
+    async def _stream_to(self, path: str, part: Path, size: int | None) -> int:
+        """Stream `path` into `part`; return the byte count, which must match `Content-Length` when sent.
+
+        A `Content-Length` that is not a plain decimal number raises `PearlApiError`; one that differs from
+        the listing's `size` raises `IncompleteDownload` before the body is read."""
         got = 0
         async with self._client.stream("GET", path) as r:
             r.raise_for_status()
+            length = _content_length(path, r.headers.get("Content-Length"))
+            if length is not None and size is not None and length != size:
+                raise IncompleteDownload(size, length)
+            promised = size if size is not None else length
+            limit = MAX_DOWNLOAD_BYTES if promised is None else min(promised, MAX_DOWNLOAD_BYTES)
             fh = await to_thread.run_sync(partial(part.open, "wb"))
             try:
                 async for chunk in r.aiter_bytes():
-                    await to_thread.run_sync(fh.write, chunk)
                     got += len(chunk)
+                    if got > limit:
+                        raise IncompleteDownload(limit, got)
+                    await to_thread.run_sync(fh.write, chunk)
             finally:
                 await to_thread.run_sync(fh.close)
-            length = r.headers.get("Content-Length")
-            if length is not None and got != int(length):
-                raise IncompleteDownload(int(length), got)
+            if length is not None and got != length:
+                raise IncompleteDownload(length, got)
         return got
 
     async def start_all(self, ids: list[str] | None = None, *, all_recorders: bool = False) -> None:
@@ -259,6 +290,15 @@ class PearlClient:
     async def stop_all(self, ids: list[str] | None = None, *, all_recorders: bool = False) -> None:
         """Bulk stop; same `ids`, `all_recorders` and asynchrony as `start_all`."""
         await self._post("/recorders/control/stop", params=_bulk_ids(ids, all_recorders))
+
+
+def _content_length(path: str, value: str | None) -> int | None:
+    """`Content-Length` as an int, `None` when absent; anything but ASCII digits is a device error."""
+    if value is None:
+        return None
+    if not (value.isascii() and value.isdigit()):
+        raise PearlApiError(path, None, f"bad Content-Length header: {value[:40]!r}")
+    return int(value)
 
 
 def _ids(ids: list[str] | None) -> dict[str, str] | None:

@@ -144,3 +144,39 @@ async def test_an_unsafe_file_id_from_the_device_is_refused_before_any_download(
         with pytest.raises(ValueError, match="unsafe"):
             await pull(client, "1", tmp_path / "1")
     assert device.downloads == []
+
+
+def _write_index(folder: Path, text: str) -> None:
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / "index.jsonl").write_text(text)
+
+
+def _line(fid: str) -> str:
+    return json.dumps({"id": fid, "path": f"{fid}.mp4", "sha256": "0" * 64}) + "\n"
+
+
+def test_load_index_ignores_a_torn_last_line(tmp_path: Path) -> None:
+    """A crash mid-append can leave the last line cut short; the complete lines before it still count."""
+    _write_index(tmp_path, _line("1") + _line("2")[:20])
+    assert [e["id"] for e in load_index(tmp_path)] == ["1"]
+
+
+def test_load_index_keeps_a_complete_last_line_without_a_newline(tmp_path: Path) -> None:
+    _write_index(tmp_path, _line("1") + _line("2").rstrip("\n"))
+    assert [e["id"] for e in load_index(tmp_path)] == ["1", "2"]
+
+
+def test_load_index_still_refuses_a_broken_line_in_the_middle(tmp_path: Path) -> None:
+    _write_index(tmp_path, _line("1") + "{not json\n" + _line("2"))
+    with pytest.raises(ValueError):
+        load_index(tmp_path)
+
+
+async def test_pull_after_a_torn_last_line_writes_a_clean_index(tmp_path: Path) -> None:
+    folder = tmp_path / "1"
+    _write_index(folder, _line("1")[:25])
+    async with _client(Device(_listing())) as client:
+        report = await pull(client, "1", folder)
+    assert report.downloaded == ["1", "2"]
+    lines = (folder / "index.jsonl").read_text().splitlines()
+    assert [json.loads(line)["id"] for line in lines] == ["1", "2"]

@@ -2,14 +2,14 @@
 
 Files land in `<folder>/<file_id>.<extension>`. `<folder>/index.jsonl` gets one JSON line per pulled file,
 written only after the file is complete and hashed, so an interrupted run never indexes a missing or partial
-file.
+file. A crash in the middle of an append can leave the last line cut short: `load_index` ignores that line and
+the next append replaces it.
 """
 
 from __future__ import annotations
 
 import json
 import os
-import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -17,10 +17,9 @@ from typing import Any
 from anyio import to_thread
 
 from pearl_episodes.episodes.manifest import sha256_of_async
-from pearl_episodes.pearl.client import PearlClient, RecordingFile
+from pearl_episodes.pearl.client import SAFE_ID, PearlClient, RecordingFile, UnsafeIdError
 
 INDEX_NAME = "index.jsonl"
-_SAFE_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
 
 
 @dataclass
@@ -33,21 +32,45 @@ class PullReport:
 def _file_name(file: RecordingFile) -> str:
     """`<id>.<extension>`. Both come from the device and become a path part, so they must be plain names."""
     for part in (file.id, file.extension):
-        if part is not None and not _SAFE_NAME.fullmatch(part):
-            raise ValueError(f"unsafe file id or extension from device: {part!r}")
+        if part is not None and not SAFE_ID.fullmatch(part):
+            raise UnsafeIdError(f"unsafe file id or extension from device: {part!r}")
     return file.id if file.extension is None else f"{file.id}.{file.extension}"
 
 
+def _torn_tail(text: str) -> str:
+    """The unfinished last line of `text`: no newline and not valid JSON. Empty if there is none."""
+    tail = text[text.rfind("\n") + 1 :]
+    if not tail.strip():
+        return ""
+    try:
+        json.loads(tail)
+    except ValueError:
+        return tail
+    return ""
+
+
 def load_index(folder: Path) -> list[dict[str, Any]]:
-    """The pulled-file index for `folder`; empty when nothing has been pulled yet."""
+    """The pulled-file index for `folder`; empty when nothing has been pulled yet. A torn last line is
+    ignored; a broken line anywhere else raises `ValueError`."""
     path = folder / INDEX_NAME
     if not path.exists():
         return []
-    return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+    text = path.read_text()
+    text = text[: len(text) - len(_torn_tail(text))]
+    return [json.loads(line) for line in text.splitlines() if line.strip()]
 
 
 def _append_index(folder: Path, entry: dict[str, Any]) -> None:
-    with (folder / INDEX_NAME).open("a") as fh:
+    """Append one line. A torn last line is cut off first, and a complete one missing its newline gets one."""
+    path = folder / INDEX_NAME
+    with path.open("a+") as fh:
+        fh.seek(0)
+        text = fh.read()
+        torn = _torn_tail(text)
+        if torn:
+            fh.truncate(len(text.encode()) - len(torn.encode()))
+        elif text and not text.endswith("\n"):
+            fh.write("\n")
         fh.write(json.dumps(entry) + "\n")
         fh.flush()
         os.fsync(fh.fileno())
